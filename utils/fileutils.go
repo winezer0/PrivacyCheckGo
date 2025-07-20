@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"privacycheck/baserule"
 	"privacycheck/logging"
 
 	"golang.org/x/text/encoding/charmap"
@@ -17,6 +16,13 @@ import (
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
+
+// FileInfo 表示文件信息
+type FileInfo struct {
+	Path     string
+	Size     int64
+	Encoding string
+}
 
 // DefaultExcludeExt 默认排除的文件扩展名
 var DefaultExcludeExt = []string{
@@ -29,8 +35,8 @@ var DefaultExcludeExt = []string{
 }
 
 // GetFilesWithFilter 获取符合条件的文件列表
-func GetFilesWithFilter(targetPath string, excludeExt []string, limitSizeMB int) ([]baserule.FileInfo, error) {
-	var files []baserule.FileInfo
+func GetFilesWithFilter(targetPath string, excludeExt []string, limitSizeMB int) ([]FileInfo, error) {
+	var files []FileInfo
 
 	// 合并默认排除扩展名和用户指定的扩展名
 	allExcludeExt := append(DefaultExcludeExt, excludeExt...)
@@ -45,7 +51,7 @@ func GetFilesWithFilter(targetPath string, excludeExt []string, limitSizeMB int)
 	if info, err := os.Stat(targetPath); err == nil && !info.IsDir() {
 		if !shouldExcludeFile(targetPath, info, excludeMap, limitSizeBytes) {
 			encoding := DetectFileEncoding(targetPath)
-			files = append(files, baserule.FileInfo{
+			files = append(files, FileInfo{
 				Path:     targetPath,
 				Size:     info.Size(),
 				Encoding: encoding,
@@ -74,7 +80,7 @@ func GetFilesWithFilter(targetPath string, excludeExt []string, limitSizeMB int)
 		// 检测文件编码
 		encoding := DetectFileEncoding(path)
 
-		files = append(files, baserule.FileInfo{
+		files = append(files, FileInfo{
 			Path:     path,
 			Size:     info.Size(),
 			Encoding: encoding,

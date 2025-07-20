@@ -7,25 +7,25 @@ import (
 	"os"
 	"path/filepath"
 	"privacycheck/config"
+	"privacycheck/scanner"
 	"reflect"
 	"strings"
 
-	"privacycheck/baserule"
 	"privacycheck/logging"
 )
 
-// OutputProcessor 输出处理器
-type OutputProcessor struct {
+// Output 输出处理器
+type Output struct {
 	config *config.Config
 }
 
-// NewOutputProcessor 创建输出处理器
-func NewOutputProcessor(config *config.Config) *OutputProcessor {
-	return &OutputProcessor{config: config}
+// NewOutput 创建输出处理器
+func NewOutput(config *config.Config) *Output {
+	return &Output{config: config}
 }
 
 // ProcessResults 处理扫描结果
-func (p *OutputProcessor) ProcessResults(results []baserule.ScanResult) error {
+func (p *Output) ProcessResults(results []scanner.ScanResult) error {
 	if len(results) == 0 {
 		logging.Info("没有发现任何结果")
 		return nil
@@ -45,11 +45,11 @@ func (p *OutputProcessor) ProcessResults(results []baserule.ScanResult) error {
 	}
 
 	// 按组分组输出
-	var groupedResults map[string][]baserule.ScanResult
+	var groupedResults map[string][]scanner.ScanResult
 	if p.config.OutputGroup {
 		groupedResults = p.groupByField(results, "group")
 	} else {
-		groupedResults = map[string][]baserule.ScanResult{"": results}
+		groupedResults = map[string][]scanner.ScanResult{"": results}
 	}
 
 	// 过滤输出字段
@@ -70,7 +70,7 @@ func (p *OutputProcessor) ProcessResults(results []baserule.ScanResult) error {
 }
 
 // formatResults 格式化结果
-func (p *OutputProcessor) formatResults(results []baserule.ScanResult) []baserule.ScanResult {
+func (p *Output) formatResults(results []scanner.ScanResult) []scanner.ScanResult {
 	for i := range results {
 		results[i].Match = p.stripString(results[i].Match)
 		results[i].Context = p.stripString(results[i].Context)
@@ -82,7 +82,7 @@ func (p *OutputProcessor) formatResults(results []baserule.ScanResult) []baserul
 }
 
 // stripString 清理字符串
-func (p *OutputProcessor) stripString(s string) string {
+func (p *Output) stripString(s string) string {
 	// 去除首尾的引号、括号、空格等
 	s = strings.Trim(s, "'\"()[]{}  \n\r\t")
 	// 替换转义的斜杠
@@ -91,8 +91,8 @@ func (p *OutputProcessor) stripString(s string) string {
 }
 
 // filterBlockMatches 过滤黑名单匹配
-func (p *OutputProcessor) filterBlockMatches(results []baserule.ScanResult) []baserule.ScanResult {
-	var filtered []baserule.ScanResult
+func (p *Output) filterBlockMatches(results []scanner.ScanResult) []scanner.ScanResult {
+	var filtered []scanner.ScanResult
 
 	for _, result := range results {
 		blocked := false
@@ -112,8 +112,8 @@ func (p *OutputProcessor) filterBlockMatches(results []baserule.ScanResult) []ba
 }
 
 // groupByField 按字段分组
-func (p *OutputProcessor) groupByField(results []baserule.ScanResult, field string) map[string][]baserule.ScanResult {
-	groups := make(map[string][]baserule.ScanResult)
+func (p *Output) groupByField(results []scanner.ScanResult, field string) map[string][]scanner.ScanResult {
+	groups := make(map[string][]scanner.ScanResult)
 
 	for _, result := range results {
 		var key string
@@ -135,7 +135,7 @@ func (p *OutputProcessor) groupByField(results []baserule.ScanResult, field stri
 }
 
 // filterOutputKeys 过滤输出字段
-func (p *OutputProcessor) filterOutputKeys(results []baserule.ScanResult) []baserule.ScanResult {
+func (p *Output) filterOutputKeys(results []scanner.ScanResult) []scanner.ScanResult {
 	if len(p.config.OutputKeys) == 0 {
 		return results
 	}
@@ -147,9 +147,9 @@ func (p *OutputProcessor) filterOutputKeys(results []baserule.ScanResult) []base
 	}
 
 	// 过滤字段
-	var filtered []baserule.ScanResult
+	var filtered []scanner.ScanResult
 	for _, result := range results {
-		newResult := baserule.ScanResult{}
+		newResult := scanner.ScanResult{}
 
 		if keyMap["file"] {
 			newResult.File = result.File
@@ -183,7 +183,7 @@ func (p *OutputProcessor) filterOutputKeys(results []baserule.ScanResult) []base
 }
 
 // outputGroup 输出单个组的结果
-func (p *OutputProcessor) outputGroup(groupName string, results []baserule.ScanResult) error {
+func (p *Output) outputGroup(groupName string, results []scanner.ScanResult) error {
 	// 生成输出文件名
 	baseOutput := p.config.OutputFile
 	if baseOutput == "" {
@@ -228,7 +228,7 @@ func (p *OutputProcessor) outputGroup(groupName string, results []baserule.ScanR
 }
 
 // writeJSON 写入JSON文件
-func (p *OutputProcessor) writeJSON(filename string, results []baserule.ScanResult) error {
+func (p *Output) writeJSON(filename string, results []scanner.ScanResult) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("创建JSON文件失败: %w", err)
@@ -247,7 +247,7 @@ func (p *OutputProcessor) writeJSON(filename string, results []baserule.ScanResu
 }
 
 // writeCSV 写入CSV文件
-func (p *OutputProcessor) writeCSV(filename string, results []baserule.ScanResult) error {
+func (p *Output) writeCSV(filename string, results []scanner.ScanResult) error {
 	if len(results) == 0 {
 		return nil
 	}
@@ -279,7 +279,7 @@ func (p *OutputProcessor) writeCSV(filename string, results []baserule.ScanResul
 }
 
 // getCSVHeaders 获取CSV表头
-func (p *OutputProcessor) getCSVHeaders(result baserule.ScanResult) []string {
+func (p *Output) getCSVHeaders(result scanner.ScanResult) []string {
 	var headers []string
 
 	// 如果指定了输出字段，使用指定的字段顺序
@@ -302,7 +302,7 @@ func (p *OutputProcessor) getCSVHeaders(result baserule.ScanResult) []string {
 }
 
 // resultToCSVRecord 将结果转换为CSV记录
-func (p *OutputProcessor) resultToCSVRecord(result baserule.ScanResult, headers []string) []string {
+func (p *Output) resultToCSVRecord(result scanner.ScanResult, headers []string) []string {
 	record := make([]string, len(headers))
 
 	for i, header := range headers {
@@ -332,7 +332,7 @@ func (p *OutputProcessor) resultToCSVRecord(result baserule.ScanResult, headers 
 }
 
 // printStatistics 打印统计信息
-func (p *OutputProcessor) printStatistics(results []baserule.ScanResult) {
+func (p *Output) printStatistics(results []scanner.ScanResult) {
 	// 统计各种信息
 	sensitiveCount := 0
 	fileCount := make(map[string]bool)

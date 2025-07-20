@@ -8,13 +8,13 @@ import (
 )
 
 // ValidateRules 验证规则配置
-func (config *RulesConfig) ValidateRules() error {
+func (c *RulesConfig) ValidateRules() error {
 	logging.Info("开始验证规则...")
 
 	var invalidRules []string
 	validRulesCount := 0
 
-	for _, group := range config.Rules {
+	for _, group := range c.Rules {
 		for _, rule := range group.Rule {
 			// 检查loaded字段(默认为True)
 			if !rule.Loaded {
@@ -54,7 +54,7 @@ func (config *RulesConfig) ValidateRules() error {
 }
 
 // FilterRules 过滤规则
-func FilterRules(config *RulesConfig, filterGroups, filterNames []string, sensitiveOnly bool) RuleMap {
+func (c *RulesConfig) FilterRules(filterGroups, filterNames []string, sensitiveOnly bool) RuleMap {
 	result := make(RuleMap)
 
 	// 转换过滤条件为小写
@@ -70,7 +70,7 @@ func FilterRules(config *RulesConfig, filterGroups, filterNames []string, sensit
 		}
 	}
 
-	for _, group := range config.Rules {
+	for _, group := range c.Rules {
 		// 按照group_name进行过滤
 		if len(lowerFilterGroups) > 0 {
 			groupMatched := false
@@ -126,30 +126,4 @@ func FilterRules(config *RulesConfig, filterGroups, filterNames []string, sensit
 	}
 
 	return result
-}
-
-// PrintRulesInfo 打印规则信息
-func PrintRulesInfo(rules RuleMap) {
-	logging.Info("本次扫描使用的规则:")
-
-	for groupName, ruleList := range rules {
-		for _, rule := range ruleList {
-			regex := rule.FRegex
-			if len(regex) > 50 {
-				regex = regex[:47] + "..."
-			}
-			logging.Infof("%s: %s: %s", groupName, rule.Name, regex)
-		}
-	}
-
-	logging.Info(strings.Repeat("=", 50))
-}
-
-// CountRules 计算规则数量
-func CountRules(rules RuleMap) int {
-	count := 0
-	for _, ruleList := range rules {
-		count += len(ruleList)
-	}
-	return count
 }

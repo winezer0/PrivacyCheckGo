@@ -1,4 +1,4 @@
-package baserule
+package scanner
 
 import "time"
 
@@ -14,17 +14,10 @@ type ScanResult struct {
 	Sensitive  bool   `json:"sensitive"`   // 是否敏感信息
 }
 
-// ScanCache 表示扫描缓存
-type ScanCache struct {
+// ScanCached 表示扫描缓存
+type ScanCached struct {
 	Result     map[string][]ScanResult `json:"result"`      // 缓存的扫描结果
 	LastUpdate string                  `json:"last_update"` // 最后更新时间
-}
-
-// FileInfo 表示文件信息
-type FileInfo struct {
-	Path     string
-	Size     int64
-	Encoding string
 }
 
 // ScanStats 表示扫描统计信息

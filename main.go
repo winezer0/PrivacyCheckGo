@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/jessevdk/go-flags"
 	"os"
-	"privacycheck/baserule"
 	"privacycheck/output"
 	"runtime"
 
@@ -17,13 +16,13 @@ import (
 
 // ParseArgs 解析命令行参数
 func ParseArgs() (*config.Config, error) {
-	var config config.Config
+	var opts config.Config
 
 	// 设置默认值
-	config.Workers = runtime.NumCPU()
-	config.FormatResults = true
+	opts.Workers = runtime.NumCPU()
+	opts.FormatResults = true
 
-	parser := flags.NewParser(&config, flags.Default)
+	parser := flags.NewParser(&opts, flags.Default)
 	parser.Usage = "Privacy information detection tool"
 
 	// 解析命令行参数
@@ -39,28 +38,28 @@ func ParseArgs() (*config.Config, error) {
 	}
 
 	// 处理版本信息显示
-	if config.Version {
-		fmt.Println(baserule.GetVersionString())
+	if opts.Version {
+		fmt.Println(config.GetVersionInfo())
 		return nil, nil
 	}
 
 	// 验证必需参数（除非是版本命令）
-	if config.Target == "" && !config.Version {
+	if opts.Target == "" && !opts.Version {
 		return nil, fmt.Errorf("必须指定 --target 参数")
 	}
 
 	// 验证文件/目录是否存在
-	if _, err := os.Stat(config.Target); os.IsNotExist(err) {
-		return nil, fmt.Errorf("目标路径不存在: %s", config.Target)
+	if _, err := os.Stat(opts.Target); os.IsNotExist(err) {
+		return nil, fmt.Errorf("目标路径不存在: %s", opts.Target)
 	}
 
 	// 设置默认工作线程数
-	if config.Workers <= 0 {
-		config.Workers = runtime.NumCPU()
+	if opts.Workers <= 0 {
+		opts.Workers = runtime.NumCPU()
 	}
 
 	// 验证输出键的有效性
-	if len(config.OutputKeys) > 0 {
+	if len(opts.OutputKeys) > 0 {
 		allowedKeys := map[string]bool{
 			"file":        true,
 			"group":       true,
@@ -72,7 +71,7 @@ func ParseArgs() (*config.Config, error) {
 			"sensitive":   true,
 		}
 
-		for _, key := range config.OutputKeys {
+		for _, key := range opts.OutputKeys {
 			if !allowedKeys[key] {
 				return nil, fmt.Errorf("无效的输出键: %s，允许的键: file, group, rule_name, match, context, position, line_number, sensitive", key)
 			}
@@ -80,18 +79,11 @@ func ParseArgs() (*config.Config, error) {
 	}
 
 	// 设置默认输出文件名
-	if config.OutputFile == "" {
-		config.OutputFile = config.ProjectName + "." + config.OutputFormat
+	if opts.OutputFile == "" {
+		opts.OutputFile = opts.ProjectName + "." + opts.OutputFormat
 	}
 
-	return &config, nil
-}
-
-// PrintVersion 打印版本信息
-func PrintVersion() {
-	fmt.Println("PrivacyCheck Go版本 v1.0.0")
-	fmt.Println("基于Python版本PrivacyCheck重新实现的Go版本")
-	fmt.Println("兼容HAE规则格式的静态代码敏感信息检测工具")
+	return &opts, nil
 }
 
 func main() {
@@ -136,8 +128,8 @@ func main() {
 	}
 
 	// 过滤规则
-	filteredRules := baserule.FilterRules(rulesConfig, cmdConfig.FilterGroups, cmdConfig.FilterNames, cmdConfig.SensitiveOnly)
-	ruleCount := baserule.CountRules(filteredRules)
+	filteredRules := rulesConfig.FilterRules(cmdConfig.FilterGroups, cmdConfig.FilterNames, cmdConfig.SensitiveOnly)
+	ruleCount := filteredRules.CountRules()
 
 	logging.Infof("过滤后规则: %d 个规则组, %d 个规则", len(filteredRules), ruleCount)
 
@@ -147,7 +139,7 @@ func main() {
 	}
 
 	// 打印规则信息
-	baserule.PrintRulesInfo(filteredRules)
+	filteredRules.PrintRulesInfo()
 
 	// 获取待扫描文件
 	files, err := utils.GetFilesWithFilter(cmdConfig.Target, cmdConfig.ExcludeExt, cmdConfig.LimitSize)
@@ -181,7 +173,7 @@ func main() {
 
 	// 处理输出
 	if len(results) > 0 {
-		outputProcessor := output.NewOutputProcessor(cmdConfig)
+		outputProcessor := output.NewOutput(cmdConfig)
 		if err := outputProcessor.ProcessResults(results); err != nil {
 			logging.Errorf("输出结果失败: %v", err)
 			os.Exit(1)
