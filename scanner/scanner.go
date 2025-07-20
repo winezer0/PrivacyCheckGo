@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"privacycheck/config"
 	"sync"
 	"time"
 
-	"privacycheck/core"
+	"privacycheck/baserule"
 	"privacycheck/logging"
 	"privacycheck/utils"
 )
@@ -15,24 +16,24 @@ import (
 // Scanner 扫描器
 type Scanner struct {
 	engine     *RuleEngine
-	config     *core.Config
+	config     *config.Config
 	cache      *ScanCache
-	results    []core.ScanResult
+	results    []baserule.ScanResult
 	resultsMux sync.Mutex
-	stats      core.ScanStats
+	stats      baserule.ScanStats
 	statsMux   sync.RWMutex
 }
 
 // ScanCache 扫描缓存
 type ScanCache struct {
-	data     core.ScanCache
+	data     baserule.ScanCache
 	filePath string
 	mux      sync.RWMutex
 	lastSave time.Time
 }
 
 // NewScanner 创建新的扫描器
-func NewScanner(rules map[string][]core.Rule, config *core.Config) (*Scanner, error) {
+func NewScanner(rules baserule.RuleMap, config *config.Config) (*Scanner, error) {
 	engine, err := NewRuleEngine(rules)
 	if err != nil {
 		return nil, fmt.Errorf("创建规则引擎失败: %w", err)
@@ -41,7 +42,7 @@ func NewScanner(rules map[string][]core.Rule, config *core.Config) (*Scanner, er
 	scanner := &Scanner{
 		engine: engine,
 		config: config,
-		stats: core.ScanStats{
+		stats: baserule.ScanStats{
 			StartTime: time.Now(),
 		},
 	}
@@ -64,8 +65,8 @@ func NewScanner(rules map[string][]core.Rule, config *core.Config) (*Scanner, er
 func NewScanCache(filePath string) (*ScanCache, error) {
 	cache := &ScanCache{
 		filePath: filePath,
-		data: core.ScanCache{
-			Result:     make(map[string][]core.ScanResult),
+		data: baserule.ScanCache{
+			Result:     make(map[string][]baserule.ScanResult),
 			LastUpdate: time.Now().Format(time.RFC3339),
 		},
 		lastSave: time.Now(),
@@ -124,7 +125,7 @@ func (c *ScanCache) save() error {
 }
 
 // get 获取缓存结果
-func (c *ScanCache) get(filePath string) ([]core.ScanResult, bool) {
+func (c *ScanCache) get(filePath string) ([]baserule.ScanResult, bool) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 
@@ -133,7 +134,7 @@ func (c *ScanCache) get(filePath string) ([]core.ScanResult, bool) {
 }
 
 // set 设置缓存结果
-func (c *ScanCache) set(filePath string, results []core.ScanResult) {
+func (c *ScanCache) set(filePath string, results []baserule.ScanResult) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -149,7 +150,7 @@ func (c *ScanCache) shouldSave(forceStore bool) bool {
 }
 
 // Scan 执行扫描
-func (s *Scanner) Scan(files []core.FileInfo) ([]core.ScanResult, error) {
+func (s *Scanner) Scan(files []baserule.FileInfo) ([]baserule.ScanResult, error) {
 	s.stats.TotalFiles = len(files)
 
 	logging.Infof("开始扫描，共发现 %d 个有效文件", len(files))
@@ -157,7 +158,7 @@ func (s *Scanner) Scan(files []core.FileInfo) ([]core.ScanResult, error) {
 	logging.Infof("规则引擎: %d 个规则组, %d 个规则", s.engine.GetGroupsCount(), s.engine.GetRulesCount())
 
 	// 创建工作池
-	jobs := make(chan core.FileInfo, len(files))
+	jobs := make(chan baserule.FileInfo, len(files))
 	results := make(chan ScanJob, len(files))
 
 	// 启动工作协程
@@ -210,12 +211,12 @@ func (s *Scanner) Scan(files []core.FileInfo) ([]core.ScanResult, error) {
 // ScanJob 扫描任务结果
 type ScanJob struct {
 	FilePath string
-	Results  []core.ScanResult
+	Results  []baserule.ScanResult
 	Error    error
 }
 
 // worker 工作协程
-func (s *Scanner) worker(jobs <-chan core.FileInfo, results chan<- ScanJob, wg *sync.WaitGroup) {
+func (s *Scanner) worker(jobs <-chan baserule.FileInfo, results chan<- ScanJob, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for file := range jobs {
@@ -242,7 +243,7 @@ func (s *Scanner) worker(jobs <-chan core.FileInfo, results chan<- ScanJob, wg *
 }
 
 // scanFile 扫描单个文件
-func (s *Scanner) scanFile(file core.FileInfo) ([]core.ScanResult, error) {
+func (s *Scanner) scanFile(file baserule.FileInfo) ([]baserule.ScanResult, error) {
 	content, err := utils.ReadFileSafe(file.Path, file.Encoding)
 	if err != nil {
 		return nil, fmt.Errorf("读取文件失败: %w", err)
@@ -253,8 +254,8 @@ func (s *Scanner) scanFile(file core.FileInfo) ([]core.ScanResult, error) {
 }
 
 // scanFileInChunks 分块扫描文件
-func (s *Scanner) scanFileInChunks(file core.FileInfo) ([]core.ScanResult, error) {
-	var allResults []core.ScanResult
+func (s *Scanner) scanFileInChunks(file baserule.FileInfo) ([]baserule.ScanResult, error) {
+	var allResults []baserule.ScanResult
 	chunkSize := 1024 * 1024 // 1MB
 	chunkOffset := 0
 

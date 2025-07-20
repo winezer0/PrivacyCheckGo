@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"privacycheck/core"
+	"privacycheck/baserule"
 	"privacycheck/logging"
 
 	"golang.org/x/text/encoding/charmap"
@@ -18,7 +18,7 @@ import (
 	"golang.org/x/text/transform"
 )
 
-// 默认排除的文件扩展名
+// DefaultExcludeExt 默认排除的文件扩展名
 var DefaultExcludeExt = []string{
 	".tmp", ".exe", ".bin", ".dll", ".elf", ".so", ".dylib",
 	".zip", ".rar", ".7z", ".gz", ".bz2", ".tar", ".xz",
@@ -29,9 +29,9 @@ var DefaultExcludeExt = []string{
 }
 
 // GetFilesWithFilter 获取符合条件的文件列表
-func GetFilesWithFilter(targetPath string, excludeExt []string, limitSizeMB int) ([]core.FileInfo, error) {
-	var files []core.FileInfo
-	
+func GetFilesWithFilter(targetPath string, excludeExt []string, limitSizeMB int) ([]baserule.FileInfo, error) {
+	var files []baserule.FileInfo
+
 	// 合并默认排除扩展名和用户指定的扩展名
 	allExcludeExt := append(DefaultExcludeExt, excludeExt...)
 	excludeMap := make(map[string]bool)
@@ -45,7 +45,7 @@ func GetFilesWithFilter(targetPath string, excludeExt []string, limitSizeMB int)
 	if info, err := os.Stat(targetPath); err == nil && !info.IsDir() {
 		if !shouldExcludeFile(targetPath, info, excludeMap, limitSizeBytes) {
 			encoding := DetectFileEncoding(targetPath)
-			files = append(files, core.FileInfo{
+			files = append(files, baserule.FileInfo{
 				Path:     targetPath,
 				Size:     info.Size(),
 				Encoding: encoding,
@@ -73,8 +73,8 @@ func GetFilesWithFilter(targetPath string, excludeExt []string, limitSizeMB int)
 
 		// 检测文件编码
 		encoding := DetectFileEncoding(path)
-		
-		files = append(files, core.FileInfo{
+
+		files = append(files, baserule.FileInfo{
 			Path:     path,
 			Size:     info.Size(),
 			Encoding: encoding,
@@ -144,7 +144,7 @@ func detectEncoding(data []byte) string {
 
 	// 尝试不同编码
 	encodings := []string{"utf-8", "gbk", "gb2312", "gb18030", "big5"}
-	
+
 	for _, encoding := range encodings {
 		if isValidEncoding(data, encoding) {
 			return encoding
@@ -158,7 +158,7 @@ func detectEncoding(data []byte) string {
 // isValidEncoding 检查数据是否符合指定编码
 func isValidEncoding(data []byte, encoding string) bool {
 	var decoder transform.Transformer
-	
+
 	switch strings.ToLower(encoding) {
 	case "utf-8":
 		// UTF-8验证
@@ -333,4 +333,10 @@ func ReadFileInChunks(filePath, encoding string, chunkSize int, callback func(ch
 	}
 
 	return scanner.Err()
+}
+
+// FileExists 检查文件是否存在
+func FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
 }
