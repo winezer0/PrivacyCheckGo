@@ -11,7 +11,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    
     strategy:
       matrix:
         include:
@@ -23,37 +22,47 @@ jobs:
             artifact-name: privacycheck-linux-amd64
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Go 1.20
-      uses: actions/setup-go@v4
-      with:
-        go-version: 1.20
+      - name: Set up Go 1.20
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+          cache-dependency-path: go.sum
 
-    - name: Cache Go modules
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
+      - name: Check Go version
+        run: go version
 
-    - name: Build for ${{ matrix.goos }}-${{ matrix.goarch }}
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-        CGO_ENABLED: 0
-      run: |
-        go build -ldflags="-s -w -X main.Version=${{ github.event.inputs.version }}" -o ${{ matrix.artifact-name }} main.go
+      - name: Enable Go Modules
+        run: go env -w GO111MODULE=on
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact-name }}
-        path: ${{ matrix.artifact-name }}
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build for ${{ matrix.goos }}-${{ matrix.goarch }}
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -ldflags="-s -w -X main.Version=${{ github.event.inputs.version }}" -o ${{ matrix.artifact-name }} main.go
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-name }}
 
   release:
     needs: build
@@ -61,47 +70,47 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
-    
+
     steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: ./artifacts
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
 
-    - name: List downloaded files
-      run: |
-        echo "Current directory: $(pwd)"
-        echo "Artifacts directory contents:"
-        Get-ChildItem -Path "./artifacts" -Recurse | Format-Table Name, FullName
+      - name: List downloaded files
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Artifacts directory contents:"
+          Get-ChildItem -Path "./artifacts" -Recurse | Format-Table Name, FullName
 
-    - name: Get current date
-      id: date
-      run: |
-        $buildDate = Get-Date -Format "yyyy.MM.dd"
-        echo "builddate=$buildDate" >> $env:GITHUB_OUTPUT
-        echo "Build date: $buildDate"
+      - name: Get current date
+        id: date
+        run: |
+          $buildDate = Get-Date -Format "yyyy.MM.dd"
+          echo "builddate=$buildDate" >> $env:GITHUB_OUTPUT
+          echo "Build date: $buildDate"
 
-    - name: Create release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ github.event.inputs.version }}
-        name: Release v${{ github.event.inputs.version }}
-        body: |
-          ## privacycheck v${{ github.event.inputs.version }}
-          
-          ### 构建信息
-          - 版本号: ${{ github.event.inputs.version }}
-          - 构建日期: ${{ steps.date.outputs.builddate }}
-          - 构建平台: Windows & Linux
-          - Go版本: 1.20
-          
-          ### 下载
-          - Windows (AMD64): `privacycheck-windows-amd64.exe`
-          - Linux (AMD64): `privacycheck-linux-amd64`
-        files: |
-          ./artifacts/privacycheck-windows-amd64.exe/privacycheck-windows-amd64.exe
-          ./artifacts/privacycheck-linux-amd64/privacycheck-linux-amd64
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release v${{ github.event.inputs.version }}
+          body: |
+            ## privacycheck v${{ github.event.inputs.version }}
+            
+            ### 构建信息
+            - 版本号: ${{ github.event.inputs.version }}
+            - 构建日期: ${{ steps.date.outputs.builddate }}
+            - 构建平台: Windows & Linux
+            - Go版本: 1.20
+            
+            ### 下载
+            - Windows (AMD64): `privacycheck-windows-amd64.exe`
+            - Linux (AMD64): `privacycheck-linux-amd64`
+          files: |
+            ./artifacts/privacycheck-windows-amd64.exe/privacycheck-windows-amd64.exe
+            ./artifacts/privacycheck-linux-amd64/privacycheck-linux-amd64
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
