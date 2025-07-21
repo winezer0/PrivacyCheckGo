@@ -321,7 +321,7 @@ PrivacyCheckGo/
 - `gopkg.in/yaml.v3`: YAML配置解析
 
 ### 编译要求
-- Go 1.20+
+- Go 1.20+（已测试兼容Go 1.20）
 - 无CGO依赖，支持交叉编译
 
 ### 构建说明
