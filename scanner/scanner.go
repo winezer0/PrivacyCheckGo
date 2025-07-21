@@ -12,7 +12,7 @@ import (
 // Scanner 扫描器
 type Scanner struct {
 	engine     *RuleEngine
-	config     *Config // 改为使用自己的配置结构体
+	config     *ScanConfig // 改为使用自己的配置结构体
 	cache      *CacheManager
 	results    []ScanResult
 	resultsMux sync.Mutex
@@ -21,7 +21,7 @@ type Scanner struct {
 }
 
 // NewScanner 创建新的扫描器
-func NewScanner(rules baserule.RuleMap, config *Config) (*Scanner, error) {
+func NewScanner(rules baserule.RuleMap, config *ScanConfig) (*Scanner, error) {
 	engine, err := NewRuleEngine(rules)
 	if err != nil {
 		return nil, fmt.Errorf("创建规则引擎失败: %w", err)
@@ -48,24 +48,23 @@ func NewScanner(rules baserule.RuleMap, config *Config) (*Scanner, error) {
 // Scan 执行扫描
 func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 	// 转换文件路径为FileInfo
-	var files []fileutils.FileInfo
+	var fileInfos []fileutils.FileInfo
 	for _, path := range filePaths {
 		fileInfo, err := fileutils.PathToFileInfo(path)
 		if err != nil {
 			logging.Warnf("获取文件信息失败 %s: %v", path, err)
 			continue
 		}
-		files = append(files, fileInfo)
+		fileInfos = append(fileInfos, fileInfo)
 	}
-	s.stats.TotalFiles = len(files)
+	s.stats.TotalFiles = len(fileInfos)
 
-	logging.Infof("开始扫描，共发现 %d 个有效文件", len(files))
+	logging.Infof("开始扫描，共发现 %d 个有效文件", len(fileInfos))
 	logging.Infof("使用线程数: %d", s.config.Workers)
-	logging.Infof("规则引擎: %d 个规则组, %d 个规则", s.engine.GetGroupsCount(), s.engine.GetRulesCount())
 
 	// 创建工作池
-	jobs := make(chan fileutils.FileInfo, len(files))
-	results := make(chan ScanJob, len(files))
+	jobs := make(chan fileutils.FileInfo, len(fileInfos))
+	results := make(chan ScanJob, len(fileInfos))
 
 	// 启动工作协程
 	var wg sync.WaitGroup
@@ -77,7 +76,7 @@ func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 	// 发送任务
 	go func() {
 		defer close(jobs)
-		for _, file := range files {
+		for _, file := range fileInfos {
 			jobs <- file
 		}
 	}()
@@ -114,13 +113,6 @@ func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 	return s.results, nil
 }
 
-// ScanJob 扫描任务结果
-type ScanJob struct {
-	FilePath string
-	Results  []ScanResult
-	Error    error
-}
-
 // worker 工作协程
 func (s *Scanner) worker(jobs <-chan fileutils.FileInfo, results chan<- ScanJob, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -145,13 +137,31 @@ func (s *Scanner) worker(jobs <-chan fileutils.FileInfo, results chan<- ScanJob,
 }
 
 // scanFile 扫描单个文件
-func (s *Scanner) scanFile(file fileutils.FileInfo) ([]ScanResult, error) {
-	content, err := fileutils.ReadFileWithEncoding(file.Path, file.Encoding)
-	if err != nil {
-		return nil, fmt.Errorf("读取文件失败: %w", err)
+func (s *Scanner) scanFile(fileInfo fileutils.FileInfo) ([]ScanResult, error) {
+	var results []ScanResult
+
+	// 判断是否启用分块读取以及文件大小是否超过阈值
+	chunkThreshold := int64(s.config.ChunkLimit) * 1024 * 1024 // 转换为字节
+	if s.config.ChunkLimit > 0 && fileInfo.Size > chunkThreshold {
+		const chunkSize = 1024 * 1024 // 1MB per chunk
+		err := fileutils.ReadFileByChunk(fileInfo.Path, fileInfo.Encoding, chunkSize, func(chunk fileutils.ChunkInfo) error {
+			// 对每个块应用规则，传入正确的行号偏移
+			chunkResults := s.engine.ApplyRules(chunk.Content, fileInfo.Path, int(chunk.StartOffset), chunk.StartLine)
+			results = append(results, chunkResults...)
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to read the large file %s error: %w", fileInfo.Path, err)
+		}
+	} else {
+		// 小文件或禁用分块读取时，直接读取全部内容
+		content, err := fileutils.ReadFileWithEncoding(fileInfo.Path, fileInfo.Encoding)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read the file %s error: %w", fileInfo.Path, err)
+		}
+		results = s.engine.ApplyRules(content, fileInfo.Path, 0, 1)
 	}
 
-	results := s.engine.ApplyRules(content, file.Path)
 	return results, nil
 }
 

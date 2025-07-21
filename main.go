@@ -23,9 +23,10 @@ type CmdConfig struct {
 	ProjectName string `short:"n" long:"project-name" description:"项目名称，用于生成输出文件名和缓存文件名 (默认: default_project)" default:"default_project"`
 
 	// 过滤文件
-	LimitSize   int      `long:"ls" description:"单文件大小限制 单位:MB (0表示无限制, 默认: 5)" default:"5"`
-	ExcludeExt  []string `long:"ee" description:"排除的文件扩展名列表 (支持多个关键字 如: .tmp,.log,.bak ...)"`
 	ExcludePath []string `long:"ep" description:"排除的路径关键字列表 (支持多个关键字 如: /tmp,/cache)"`
+	ExcludeExt  []string `long:"ee" description:"排除的文件扩展名列表 (支持多个关键字 如: .tmp,.log,.bak ...)"`
+	LimitSize   int      `long:"ls" description:"文件大小限制 单位:MB (超过此大小时使用被过滤, 0表示无限制, 默认: 5)" default:"5"`
+	LimitChunk  int      `long:"lc" description:"分块读取阈值 单位:MB (超过此大小时使用分块读取, 0表示禁用, 默认: 5)" default:"5"`
 
 	// 读取配置
 	SaveCache bool `short:"s" long:"save-cache" description:"启用扫描结果缓存, 支持断点续扫, 推荐大项目使用"`
@@ -47,9 +48,9 @@ type CmdConfig struct {
 	BlockMatches  []string `short:"b" long:"block-matches" description:"匹配结果黑名单过滤关键字列表"`
 
 	// 日志配置
-	LogFile   string `long:"log-file" description:"日志文件 (为空则不写入文件)" default:""`
-	LogLevel  string `long:"log-level" description:"日志级别 (debug/info/warn/error)" choice:"debug" choice:"info" choice:"warn" choice:"error" default:"info"`
-	LogFormat string `long:"log-format" description:"控制台日志格式 (T=时间,L=级别,C=调用者,M=消息,F=函数,off=关闭)" default:"TLM"`
+	LogFile   string `long:"lf" description:"日志文件 (为空则不写入文件)" default:""`
+	LogLevel  string `long:"ll" description:"日志级别 (debug/info/warn/error)" choice:"debug" choice:"info" choice:"warn" choice:"error" default:"info"`
+	LogFormat string `long:"cf" description:"控制台日志格式 (T=时间,L=级别,C=调用者,M=消息,F=函数,off=关闭)" default:"TLM"`
 }
 
 // ParseArgs 解析命令行参数
@@ -254,11 +255,12 @@ func main() {
 }
 
 // newScannerConfig 从命令行配置创建扫描器配置
-func newScannerConfig(cmdConfig *CmdConfig) *scanner.Config {
-	return &scanner.Config{
+func newScannerConfig(cmdConfig *CmdConfig) *scanner.ScanConfig {
+	return &scanner.ScanConfig{
 		Workers:     cmdConfig.Workers,
 		SaveCache:   cmdConfig.SaveCache,
 		ProjectName: cmdConfig.ProjectName,
+		ChunkLimit:  cmdConfig.LimitChunk,
 	}
 }
 

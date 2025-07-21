@@ -2,16 +2,24 @@ package scanner
 
 import "time"
 
-// Config 扫描器配置
-type Config struct {
+// ScanConfig 扫描器配置
+type ScanConfig struct {
 	Workers     int
 	SaveCache   bool
 	ProjectName string
+	ChunkLimit  int // 分块读取阈值，单位MB
+}
+
+// ScanJob 扫描任务结果
+type ScanJob struct {
+	FilePath string
+	Results  []ScanResult
+	Error    error
 }
 
 // ScanResult 表示扫描结果
 type ScanResult struct {
-	File       string `json:"file"`        // 文件路径
+	File       string `json:"cacheFile"`   // 文件路径
 	Group      string `json:"group"`       // 规则组名称
 	RuleName   string `json:"rule_name"`   // 规则名称
 	Match      string `json:"match"`       // 匹配的内容
@@ -39,10 +47,4 @@ type ProgressInfo struct {
 	Elapsed   time.Duration
 	Remaining time.Duration
 	Message   string
-}
-
-// ScanCached 表示扫描缓存
-type ScanCached struct {
-	Result     map[string][]ScanResult `json:"result"`      // 缓存的扫描结果
-	LastUpdate string                  `json:"last_update"` // 最后更新时间
 }

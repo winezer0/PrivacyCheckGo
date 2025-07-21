@@ -57,8 +57,8 @@ func (e *RuleEngine) compileRegexes() error {
 	return nil
 }
 
-// ApplyRules 对内容应用所有规则
-func (e *RuleEngine) ApplyRules(content, filePath string) []ScanResult {
+// ApplyRules 对内容应用所有规则，支持指定偏移量和起始行号
+func (e *RuleEngine) ApplyRules(content, filePath string, positionOffset int, startLineNumber int) []ScanResult {
 	var results []ScanResult
 
 	for groupName, ruleList := range e.rules {
@@ -66,7 +66,7 @@ func (e *RuleEngine) ApplyRules(content, filePath string) []ScanResult {
 			key := fmt.Sprintf("%s_%d", groupName, i)
 			regex := e.compiledReg[key]
 
-			ruleResults := e.applyRule(rule, regex, content, groupName, filePath)
+			ruleResults := e.applyRule(rule, regex, content, groupName, filePath, positionOffset, startLineNumber)
 			results = append(results, ruleResults...)
 		}
 	}
@@ -74,8 +74,8 @@ func (e *RuleEngine) ApplyRules(content, filePath string) []ScanResult {
 	return results
 }
 
-// applyRule 应用单个规则
-func (e *RuleEngine) applyRule(rule baserule.Rule, regex *regexp.Regexp, content, groupName, filePath string) []ScanResult {
+// applyRule 应用单个规则，支持指定偏移量和起始行号
+func (e *RuleEngine) applyRule(rule baserule.Rule, regex *regexp.Regexp, content, groupName, filePath string, positionOffset int, startLineNumber int) []ScanResult {
 	var results []ScanResult
 
 	// 查找所有匹配
@@ -108,17 +108,14 @@ func (e *RuleEngine) applyRule(rule baserule.Rule, regex *regexp.Regexp, content
 		contextEnd := min(len(content), end+contextRight)
 		context := content[contextStart:contextEnd]
 
-		// 计算行号
-		lineNumber := strings.Count(content[:start], "\n") + 1
-
 		result := ScanResult{
 			File:       filePath,
 			Group:      groupName,
 			RuleName:   rule.Name,
 			Match:      matchedText,
 			Context:    context,
-			Position:   start,
-			LineNumber: lineNumber,
+			Position:   positionOffset + start,                                 // 加上位置偏移
+			LineNumber: startLineNumber + strings.Count(content[:start], "\n"), // 计算行号（考虑起始行号偏移）
 			Sensitive:  rule.Sensitive,
 		}
 
@@ -126,43 +123,6 @@ func (e *RuleEngine) applyRule(rule baserule.Rule, regex *regexp.Regexp, content
 	}
 
 	return results
-}
-
-// GetRulesCount 获取规则总数
-func (e *RuleEngine) GetRulesCount() int {
-	count := 0
-	for _, ruleList := range e.rules {
-		count += len(ruleList)
-	}
-	return count
-}
-
-// GetGroupsCount 获取规则组数量
-func (e *RuleEngine) GetGroupsCount() int {
-	return len(e.rules)
-}
-
-// ValidateRule 验证单个规则
-func ValidateRule(rule baserule.Rule) error {
-	if rule.Name == "" {
-		return fmt.Errorf("规则名称不能为空")
-	}
-
-	if rule.FRegex == "" {
-		return fmt.Errorf("规则 %s: 正则表达式不能为空", rule.Name)
-	}
-
-	// 验证正则表达式语法
-	pattern := rule.FRegex
-	if rule.IgnoreCase {
-		pattern = "(?i)" + pattern
-	}
-
-	if _, err := regexp.Compile(pattern); err != nil {
-		return fmt.Errorf("规则 %s: 正则表达式语法错误 - %w", rule.Name, err)
-	}
-
-	return nil
 }
 
 // 辅助函数

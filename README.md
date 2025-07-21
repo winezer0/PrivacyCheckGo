@@ -62,39 +62,40 @@ build.bat
 
 ```bash
 # 扫描单个文件
-./privacycheck -t /path/to/file.js
+./privacycheck -p /path/to/file.js
 
 # 扫描整个目录
-./privacycheck -t /path/to/project
+./privacycheck -p /path/to/project
 
 # 使用自定义规则文件
-./privacycheck -t /path/to/project -r custom_rules.yaml
+./privacycheck -p /path/to/project -r custom_rules.yaml
 
 # 仅检测敏感信息
-./privacycheck -t /path/to/project -S
+./privacycheck -p /path/to/project -S
 
 # 输出为CSV格式
-./privacycheck -t /path/to/project -f csv
+./privacycheck -p /path/to/project -f csv
 
 # 启用缓存（推荐大项目使用）
-./privacycheck -t /path/to/project -s
+./privacycheck -p /path/to/project -s
 ```
 
 ## 命令行参数
 
 ### 基础参数
-- `-t, --target`: 待扫描的目标文件或目录（必需）
+- `-p, --project-path`: 待扫描的目标文件或目录（必需）
 - `-r, --rules`: 规则文件路径（默认：config.yaml）
-- `-p, --project-name`: 项目名称，影响输出文件名和缓存文件名
+- `-n, --project-name`: 项目名称，影响输出文件名和缓存文件名
 
 ### 性能参数
 - `-w, --workers`: 工作线程数量（默认：CPU核心数）
-- `-l, --limit-size`: 文件大小限制（MB，默认：5）
+- `--ls`: 文件大小限制（MB，默认：5，0表示无限制）
+- `--cl`: 分块读取阈值（MB，默认：5，0表示禁用分块读取）
 - `-s, --save-cache`: 启用缓存功能
-- `-k, --chunk-mode`: 启用分块读取模式（节省内存）
 
 ### 过滤参数
-- `-e, --exclude-ext`: 排除的文件扩展名
+- `--ee`: 排除的文件扩展名列表
+- `--ep`: 排除的路径关键字列表
 - `-S, --sensitive-only`: 仅检测敏感信息
 - `-N, --filter-names`: 按规则名称过滤
 - `-G, --filter-groups`: 按规则组过滤
@@ -110,10 +111,9 @@ build.bat
 ### 日志参数
 - `--log-level`: 日志级别（debug/info/warn/error，默认：info）
 - `--log-file`: 日志文件路径
-- `--console-format`: 控制台日志格式（默认：TLM）
+- `--log-format`: 控制台日志格式（默认：TLM）
 
 ### 工具参数
-- `-c, --convert`: YAML转JSON工具
 - `-h, --help`: 显示帮助信息
 
 ## 配置文件格式
@@ -163,77 +163,122 @@ rules:
 ### 基础扫描
 ```bash
 # 扫描当前目录
-./privacycheck -t .
+./privacycheck -p .
 
 # 扫描指定项目，启用缓存
-./privacycheck -t /path/to/large-project -s -p my-project
+./privacycheck -p /path/to/large-project -s -n my-project
 ```
 
 ### 高级过滤
 ```bash
 # 仅检测敏感信息
-./privacycheck -t /path/to/project -S
+./privacycheck -p /path/to/project -S
 
 # 仅检测包含"password"的规则
-./privacycheck -t /path/to/project -N password
+./privacycheck -p /path/to/project -N password
 
 # 仅检测"Sensitive Information"组的规则
-./privacycheck -t /path/to/project -G "Sensitive Information"
+./privacycheck -p /path/to/project -G "Sensitive Information"
 
 # 排除特定文件类型
-./privacycheck -t /path/to/project -e .log .tmp .bak
+./privacycheck -p /path/to/project --ee .log,.tmp,.bak
+
+# 排除特定路径
+./privacycheck -p /path/to/project --ep /tmp,/cache,node_modules
 ```
 
 ### 输出定制
 ```bash
 # 输出为CSV格式
-./privacycheck -t /path/to/project -f csv
+./privacycheck -p /path/to/project -f csv
 
 # 按规则组分别输出
-./privacycheck -t /path/to/project -g
+./privacycheck -p /path/to/project -g
 
 # 仅输出指定字段
-./privacycheck -t /path/to/project -O file rule_name match
+./privacycheck -p /path/to/project -O file,rule_name,match
 
 # 过滤包含特定关键字的结果
-./privacycheck -t /path/to/project -b "test" "example"
+./privacycheck -p /path/to/project -b "test","example"
 ```
 
 ### 性能优化
 ```bash
 # 使用8个线程扫描
-./privacycheck -t /path/to/project -w 8
-
-
+./privacycheck -p /path/to/project -w 8
 
 # 限制扫描文件大小为10MB
-./privacycheck -t /path/to/project -l 10
+./privacycheck -p /path/to/project --ls 10
+
+# 设置分块读取阈值为20MB（大文件优化）
+./privacycheck -p /path/to/project --cl 20
+
+# 禁用分块读取（高性能模式）
+./privacycheck -p /path/to/project --cl 0
+
+# 内存优化模式（1MB分块阈值）
+./privacycheck -p /path/to/project --cl 1
 ```
+
+## 分块读取功能
+
+### 智能内存管理
+PrivacyCheck Go版本支持智能分块读取功能，可以有效控制内存使用：
+
+#### 工作原理
+- **自动切换**：根据文件大小自动选择读取策略
+- **分块处理**：大文件按1MB块进行处理，保持低内存占用
+- **行完整性**：确保不会在行中间截断，保持匹配准确性
+- **位置精确**：正确计算每个匹配结果的文件位置和行号
+
+#### 配置选项
+```bash
+# 默认配置（5MB阈值）
+./privacycheck -p /path/to/project
+
+# 自定义阈值（10MB）
+./privacycheck -p /path/to/project --cl 10
+
+# 内存优化（1MB阈值）
+./privacycheck -p /path/to/project --cl 1
+
+# 禁用分块读取（全量读取）
+./privacycheck -p /path/to/project --cl 0
+```
+
+#### 使用建议
+- **内存受限环境**：设置较小阈值（1-2MB）
+- **高性能环境**：设置较大阈值（10-20MB）或禁用分块读取
+- **默认配置**：5MB阈值适合大多数场景
+- **大文件项目**：启用分块读取可显著降低内存占用
 
 ## 技术架构
 
 ### 项目结构
 ```
 PrivacyCheckGo/
-├── cmd/           # 命令行参数解析
-├── config/        # 配置管理
-├── core/          # 核心数据结构
-├── embeds/        # 嵌入资源
-├── logging/       # 日志系统
+├── baserule/      # 规则系统
 ├── scanner/       # 扫描引擎
-├── utils/         # 工具函数
+├── output/        # 输出处理
+├── pkg/           # 工具包
+│   ├── fileutils/ # 文件处理工具
+│   └── logging/   # 日志系统
+├── internal/      # 内部模块
+│   └── embeds/    # 嵌入资源
 ├── main.go        # 主程序入口
+├── config.yaml    # 默认规则配置
 ├── build.bat      # Windows构建脚本
 ├── build.sh       # Linux构建脚本
 └── README.md      # 项目文档
 ```
 
 ### 核心组件
-1. **规则引擎**：负责正则表达式编译和匹配
-2. **文件处理器**：处理文件发现、编码检测、内容读取
-3. **扫描器**：多线程扫描调度和结果收集
-4. **输出处理器**：结果格式化和文件输出
-5. **缓存系统**：扫描结果缓存和恢复
+1. **规则系统（baserule）**：HAE兼容的规则加载、验证和过滤
+2. **扫描引擎（scanner）**：多线程扫描调度、规则匹配和结果收集
+3. **文件处理（fileutils）**：文件发现、编码检测、分块读取
+4. **输出处理（output）**：结果格式化、过滤和多格式输出
+5. **缓存系统**：智能缓存管理，支持断点续扫
+6. **日志系统（logging）**：结构化日志记录和多级别输出
 
 ## 性能对比
 

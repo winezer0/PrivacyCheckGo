@@ -1,12 +1,10 @@
 package fileutils
 
 import (
-	"bufio"
-	"io"
-	"os"
-
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
+	"io"
+	"os"
 )
 
 // ReadFileWithEncoding 读取指定编码的文件内容并转换为UTF-8字符串
@@ -65,56 +63,12 @@ func readFileWithEncoding(filePath string, enc encoding.Encoding) (string, error
 
 	// 读取并解码内容
 	content, err := io.ReadAll(reader)
-	if err != nil {
+	if err != nil && len(content) == 0 {
 		return "", err
 	}
 
+	// 强制将字节切片转换为字符串，即使包含无效 UTF-8
 	return string(content), nil
-}
-
-// ReadLargeFileWithEncoding 逐行读取大文件，适合处理几MB以上的文件
-// 特点：
-// 1. 按行分割处理，适合结构化文本文件（如日志、CSV等）
-// 2. 内存占用极低，每次只处理一行
-// 3. 无法处理跨行的匹配模式
-// 4. 适用场景：日志分析、行级数据处理
-func ReadLargeFileWithEncoding(filePath, encode string, handler func(line string) error) error {
-	// 如果未指定编码，则自动检测
-	if encode == "" {
-		detectedEnc, err := DetectFileEncoding(filePath)
-		if err != nil {
-			return err
-		}
-		encode = detectedEnc
-	}
-
-	// 获取编码器，复用getEncoding函数
-	enc := normalizedEncode(encode)
-
-	// 打开文件
-	file, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	var reader io.Reader = file
-
-	// 如果不是UTF-8编码，创建解码读取器
-	if encode != "utf-8" {
-		decoder := enc.NewDecoder()
-		reader = transform.NewReader(file, ignoreErrors(decoder))
-	}
-
-	// 创建扫描器并逐行处理
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		if err := handler(scanner.Text()); err != nil {
-			return err
-		}
-	}
-
-	return scanner.Err()
 }
 
 // ReadFile 读取文件内容
