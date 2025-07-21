@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"os"
 	"privacycheck/config"
+	"privacycheck/core"
+	"privacycheck/pkg/logging"
 	"sync"
 	"time"
 
 	"privacycheck/baserule"
-	"privacycheck/logging"
-	"privacycheck/utils"
+	"privacycheck/fileutils"
 )
 
 // Scanner 扫描器
@@ -18,15 +19,15 @@ type Scanner struct {
 	engine     *RuleEngine
 	config     *config.Config
 	cache      *ScanCache
-	results    []ScanResult
+	results    []core.ScanResult
 	resultsMux sync.Mutex
-	stats      ScanStats
+	stats      core.ScanStats
 	statsMux   sync.RWMutex
 }
 
 // ScanCache 扫描缓存
 type ScanCache struct {
-	data     ScanCached
+	data     core.ScanCached
 	filePath string
 	mux      sync.RWMutex
 	lastSave time.Time
@@ -42,7 +43,7 @@ func NewScanner(rules baserule.RuleMap, config *config.Config) (*Scanner, error)
 	scanner := &Scanner{
 		engine: engine,
 		config: config,
-		stats: ScanStats{
+		stats: core.ScanStats{
 			StartTime: time.Now(),
 		},
 	}
@@ -65,8 +66,8 @@ func NewScanner(rules baserule.RuleMap, config *config.Config) (*Scanner, error)
 func NewScanCache(filePath string) (*ScanCache, error) {
 	cache := &ScanCache{
 		filePath: filePath,
-		data: ScanCached{
-			Result:     make(map[string][]ScanResult),
+		data: core.ScanCached{
+			Result:     make(map[string][]core.ScanResult),
 			LastUpdate: time.Now().Format(time.RFC3339),
 		},
 		lastSave: time.Now(),
@@ -125,7 +126,7 @@ func (c *ScanCache) save() error {
 }
 
 // get 获取缓存结果
-func (c *ScanCache) get(filePath string) ([]ScanResult, bool) {
+func (c *ScanCache) get(filePath string) ([]core.ScanResult, bool) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 
@@ -134,7 +135,7 @@ func (c *ScanCache) get(filePath string) ([]ScanResult, bool) {
 }
 
 // set 设置缓存结果
-func (c *ScanCache) set(filePath string, results []ScanResult) {
+func (c *ScanCache) set(filePath string, results []core.ScanResult) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -150,7 +151,7 @@ func (c *ScanCache) shouldSave(forceStore bool) bool {
 }
 
 // Scan 执行扫描
-func (s *Scanner) Scan(files []utils.FileInfo) ([]ScanResult, error) {
+func (s *Scanner) Scan(files []fileutils.FileInfo) ([]core.ScanResult, error) {
 	s.stats.TotalFiles = len(files)
 
 	logging.Infof("开始扫描，共发现 %d 个有效文件", len(files))
@@ -158,8 +159,8 @@ func (s *Scanner) Scan(files []utils.FileInfo) ([]ScanResult, error) {
 	logging.Infof("规则引擎: %d 个规则组, %d 个规则", s.engine.GetGroupsCount(), s.engine.GetRulesCount())
 
 	// 创建工作池
-	jobs := make(chan utils.FileInfo, len(files))
-	results := make(chan ScanJob, len(files))
+	jobs := make(chan fileutils.FileInfo, len(files))
+	results := make(chan core.ScanJob, len(files))
 
 	// 启动工作协程
 	var wg sync.WaitGroup
@@ -211,16 +212,16 @@ func (s *Scanner) Scan(files []utils.FileInfo) ([]ScanResult, error) {
 // ScanJob 扫描任务结果
 type ScanJob struct {
 	FilePath string
-	Results  []ScanResult
+	Results  []core.ScanResult
 	Error    error
 }
 
 // worker 工作协程
-func (s *Scanner) worker(jobs <-chan utils.FileInfo, results chan<- ScanJob, wg *sync.WaitGroup) {
+func (s *Scanner) worker(jobs <-chan fileutils.FileInfo, results chan<- core.ScanJob, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for file := range jobs {
-		job := ScanJob{FilePath: file.Path}
+		job := core.ScanJob{FilePath: file.Path}
 
 		// 检查缓存
 		if s.cache != nil {
@@ -243,8 +244,8 @@ func (s *Scanner) worker(jobs <-chan utils.FileInfo, results chan<- ScanJob, wg 
 }
 
 // scanFile 扫描单个文件
-func (s *Scanner) scanFile(file utils.FileInfo) ([]ScanResult, error) {
-	content, err := utils.ReadFileSafe(file.Path, file.Encoding)
+func (s *Scanner) scanFile(file fileutils.FileInfo) ([]core.ScanResult, error) {
+	content, err := fileutils.ReadFileSafe(file.Path, file.Encoding)
 	if err != nil {
 		return nil, fmt.Errorf("读取文件失败: %w", err)
 	}
@@ -254,12 +255,12 @@ func (s *Scanner) scanFile(file utils.FileInfo) ([]ScanResult, error) {
 }
 
 // scanFileInChunks 分块扫描文件
-func (s *Scanner) scanFileInChunks(file utils.FileInfo) ([]ScanResult, error) {
-	var allResults []ScanResult
+func (s *Scanner) scanFileInChunks(file fileutils.FileInfo) ([]core.ScanResult, error) {
+	var allResults []core.ScanResult
 	chunkSize := 1024 * 1024 // 1MB
 	chunkOffset := 0
 
-	err := utils.ReadFileInChunks(file.Path, file.Encoding, chunkSize, func(chunk string) error {
+	err := fileutils.ReadFileInChunks(file.Path, file.Encoding, chunkSize, func(chunk string) error {
 		results := s.engine.ApplyRuleToChunk(chunk, file.Path, chunkOffset)
 		allResults = append(allResults, results...)
 		chunkOffset += len(chunk)
@@ -274,7 +275,7 @@ func (s *Scanner) scanFileInChunks(file utils.FileInfo) ([]ScanResult, error) {
 }
 
 // processJobResult 处理任务结果
-func (s *Scanner) processJobResult(job ScanJob) {
+func (s *Scanner) processJobResult(job core.ScanJob) {
 	s.statsMux.Lock()
 	s.stats.ProcessedFiles++
 	s.statsMux.Unlock()
@@ -341,4 +342,11 @@ func (s *Scanner) printProgress() {
 		stats.ProcessedFiles, stats.TotalFiles, percent,
 		elapsed.Truncate(time.Second), remaining.Truncate(time.Second),
 		stats.TotalResults)
+}
+
+// GetStats 获取扫描统计信息
+func (s *Scanner) GetStats() *core.ScanStats {
+	s.statsMux.RLock()
+	defer s.statsMux.RUnlock()
+	return &s.stats
 }

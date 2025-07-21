@@ -2,7 +2,7 @@ package baserule
 
 import (
 	"fmt"
-	"privacycheck/logging"
+	"privacycheck/pkg/logging"
 	"regexp"
 	"strings"
 )

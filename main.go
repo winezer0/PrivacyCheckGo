@@ -1,94 +1,20 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"github.com/jessevdk/go-flags"
 	"os"
-	"privacycheck/output"
-	"runtime"
+	"privacycheck/pkg/logging"
 
+	"privacycheck/cmd"
 	"privacycheck/config"
-	"privacycheck/logging"
+	"privacycheck/fileutils"
+	"privacycheck/output"
 	"privacycheck/scanner"
-	"privacycheck/utils"
 )
-
-// ParseArgs 解析命令行参数
-func ParseArgs() (*config.Config, error) {
-	var opts config.Config
-
-	// 设置默认值
-	opts.Workers = runtime.NumCPU()
-	opts.FormatResults = true
-
-	parser := flags.NewParser(&opts, flags.Default)
-	parser.Usage = "Privacy information detection tool"
-
-	// 解析命令行参数
-	_, err := parser.Parse()
-	if err != nil {
-		var flagsErr *flags.Error
-		if errors.As(err, &flagsErr) {
-			if errors.Is(flagsErr.Type, flags.ErrHelp) {
-				return nil, nil // 显示帮助信息后退出
-			}
-		}
-		return nil, fmt.Errorf("解析命令行参数失败: %w", err)
-	}
-
-	// 处理版本信息显示
-	if opts.Version {
-		fmt.Println(config.GetVersionInfo())
-		return nil, nil
-	}
-
-	// 验证必需参数（除非是版本命令）
-	if opts.Target == "" && !opts.Version {
-		return nil, fmt.Errorf("必须指定 --target 参数")
-	}
-
-	// 验证文件/目录是否存在
-	if _, err := os.Stat(opts.Target); os.IsNotExist(err) {
-		return nil, fmt.Errorf("目标路径不存在: %s", opts.Target)
-	}
-
-	// 设置默认工作线程数
-	if opts.Workers <= 0 {
-		opts.Workers = runtime.NumCPU()
-	}
-
-	// 验证输出键的有效性
-	if len(opts.OutputKeys) > 0 {
-		allowedKeys := map[string]bool{
-			"file":        true,
-			"group":       true,
-			"rule_name":   true,
-			"match":       true,
-			"context":     true,
-			"position":    true,
-			"line_number": true,
-			"sensitive":   true,
-		}
-
-		for _, key := range opts.OutputKeys {
-			if !allowedKeys[key] {
-				return nil, fmt.Errorf("无效的输出键: %s，允许的键: file, group, rule_name, match, context, position, line_number, sensitive", key)
-			}
-		}
-	}
-
-	// 设置默认输出文件名
-	if opts.OutputFile == "" {
-		opts.OutputFile = opts.ProjectName + "." + opts.OutputFormat
-	}
-
-	return &opts, nil
-}
 
 func main() {
 	// 解析命令行参数
-	cmdConfig, err := ParseArgs()
+	cmdConfig, err := cmd.ParseArgs()
 	if err != nil {
 		fmt.Printf("参数解析失败: %v\n", err)
 		os.Exit(1)
@@ -142,7 +68,7 @@ func main() {
 	filteredRules.PrintRulesInfo()
 
 	// 获取待扫描文件
-	files, err := utils.GetFilesWithFilter(cmdConfig.Target, cmdConfig.ExcludeExt, cmdConfig.LimitSize)
+	files, err := fileutils.GetFilesWithFilter(cmdConfig.Target, cmdConfig.ExcludeExt, cmdConfig.LimitSize)
 	if err != nil {
 		logging.Errorf("获取文件列表失败: %v", err)
 		os.Exit(1)
@@ -169,12 +95,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 获取扫描统计信息
+	stats := scannerInstance.GetStats()
 	logging.Infof("扫描完成，发现 %d 个结果", len(results))
 
 	// 处理输出
 	if len(results) > 0 {
 		outputProcessor := output.NewOutput(cmdConfig)
-		if err := outputProcessor.ProcessResults(results); err != nil {
+		if err := outputProcessor.ProcessResults(results, stats); err != nil {
 			logging.Errorf("输出结果失败: %v", err)
 			os.Exit(1)
 		}

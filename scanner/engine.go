@@ -2,11 +2,12 @@ package scanner
 
 import (
 	"fmt"
+	"privacycheck/pkg/logging"
 	"regexp"
 	"strings"
 
 	"privacycheck/baserule"
-	"privacycheck/logging"
+	"privacycheck/core"
 )
 
 // RuleEngine 规则引擎
@@ -58,8 +59,8 @@ func (e *RuleEngine) compileRegexes() error {
 }
 
 // ApplyRules 对内容应用所有规则
-func (e *RuleEngine) ApplyRules(content, filePath string) []ScanResult {
-	var results []ScanResult
+func (e *RuleEngine) ApplyRules(content, filePath string) []core.ScanResult {
+	var results []core.ScanResult
 
 	for groupName, ruleList := range e.rules {
 		for i, rule := range ruleList {
@@ -75,8 +76,8 @@ func (e *RuleEngine) ApplyRules(content, filePath string) []ScanResult {
 }
 
 // applyRule 应用单个规则
-func (e *RuleEngine) applyRule(rule baserule.Rule, regex *regexp.Regexp, content, groupName, filePath string) []ScanResult {
-	var results []ScanResult
+func (e *RuleEngine) applyRule(rule baserule.Rule, regex *regexp.Regexp, content, groupName, filePath string) []core.ScanResult {
+	var results []core.ScanResult
 
 	// 查找所有匹配
 	matches := regex.FindAllStringSubmatchIndex(content, -1)
@@ -111,7 +112,7 @@ func (e *RuleEngine) applyRule(rule baserule.Rule, regex *regexp.Regexp, content
 		// 计算行号
 		lineNumber := strings.Count(content[:start], "\n") + 1
 
-		result := ScanResult{
+		result := core.ScanResult{
 			File:       filePath,
 			Group:      groupName,
 			RuleName:   rule.Name,
@@ -129,8 +130,8 @@ func (e *RuleEngine) applyRule(rule baserule.Rule, regex *regexp.Regexp, content
 }
 
 // ApplyRuleToChunk 对数据块应用规则（用于chunk模式）
-func (e *RuleEngine) ApplyRuleToChunk(content, filePath string, chunkOffset int) []ScanResult {
-	var results []ScanResult
+func (e *RuleEngine) ApplyRuleToChunk(content, filePath string, chunkOffset int) []core.ScanResult {
+	var results []core.ScanResult
 
 	for groupName, ruleList := range e.rules {
 		for i, rule := range ruleList {
@@ -146,8 +147,8 @@ func (e *RuleEngine) ApplyRuleToChunk(content, filePath string, chunkOffset int)
 }
 
 // applyRuleToChunk 对数据块应用单个规则
-func (e *RuleEngine) applyRuleToChunk(rule baserule.Rule, regex *regexp.Regexp, content, groupName, filePath string, chunkOffset int) []ScanResult {
-	var results []ScanResult
+func (e *RuleEngine) applyRuleToChunk(rule baserule.Rule, regex *regexp.Regexp, content, groupName, filePath string, chunkOffset int) []core.ScanResult {
+	var results []core.ScanResult
 
 	matches := regex.FindAllStringSubmatchIndex(content, -1)
 
@@ -179,7 +180,7 @@ func (e *RuleEngine) applyRuleToChunk(rule baserule.Rule, regex *regexp.Regexp, 
 		// 计算在整个文件中的行号（近似）
 		lineNumber := strings.Count(content[:start], "\n") + 1
 
-		result := ScanResult{
+		result := core.ScanResult{
 			File:       filePath,
 			Group:      groupName,
 			RuleName:   rule.Name,

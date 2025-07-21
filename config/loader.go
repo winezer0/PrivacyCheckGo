@@ -7,16 +7,16 @@ import (
 	"os"
 	"path/filepath"
 	"privacycheck/baserule"
-	"privacycheck/embeds"
-	"privacycheck/logging"
-	"privacycheck/utils"
+	"privacycheck/fileutils"
+	"privacycheck/internal/embeds"
+	"privacycheck/pkg/logging"
 	"strings"
 )
 
 // LoadRulesConfig 加载规则配置文件
 func LoadRulesConfig(configPath string) (*baserule.RulesConfig, error) {
 	// 如果配置文件不存在，创建默认配置文件
-	if !utils.FileExists(configPath) {
+	if !fileutils.FileExists(configPath) {
 		logging.Infof("配置文件 %s 不存在，正在创建默认配置文件...", configPath)
 		if err := createDefaultConfig(configPath); err != nil {
 			return nil, fmt.Errorf("创建默认配置文件失败: %w", err)

@@ -7,11 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"privacycheck/config"
-	"privacycheck/scanner"
+	"privacycheck/core"
+	"privacycheck/pkg/logging"
 	"reflect"
 	"strings"
-
-	"privacycheck/logging"
 )
 
 // Output 输出处理器
@@ -25,7 +24,7 @@ func NewOutput(config *config.Config) *Output {
 }
 
 // ProcessResults 处理扫描结果
-func (p *Output) ProcessResults(results []scanner.ScanResult) error {
+func (p *Output) ProcessResults(results []core.ScanResult, stats *core.ScanStats) error {
 	if len(results) == 0 {
 		logging.Info("没有发现任何结果")
 		return nil
@@ -45,11 +44,11 @@ func (p *Output) ProcessResults(results []scanner.ScanResult) error {
 	}
 
 	// 按组分组输出
-	var groupedResults map[string][]scanner.ScanResult
+	var groupedResults map[string][]core.ScanResult
 	if p.config.OutputGroup {
 		groupedResults = p.groupByField(results, "group")
 	} else {
-		groupedResults = map[string][]scanner.ScanResult{"": results}
+		groupedResults = map[string][]core.ScanResult{"": results}
 	}
 
 	// 过滤输出字段
@@ -70,7 +69,7 @@ func (p *Output) ProcessResults(results []scanner.ScanResult) error {
 }
 
 // formatResults 格式化结果
-func (p *Output) formatResults(results []scanner.ScanResult) []scanner.ScanResult {
+func (p *Output) formatResults(results []core.ScanResult) []core.ScanResult {
 	for i := range results {
 		results[i].Match = p.stripString(results[i].Match)
 		results[i].Context = p.stripString(results[i].Context)
@@ -91,8 +90,8 @@ func (p *Output) stripString(s string) string {
 }
 
 // filterBlockMatches 过滤黑名单匹配
-func (p *Output) filterBlockMatches(results []scanner.ScanResult) []scanner.ScanResult {
-	var filtered []scanner.ScanResult
+func (p *Output) filterBlockMatches(results []core.ScanResult) []core.ScanResult {
+	var filtered []core.ScanResult
 
 	for _, result := range results {
 		blocked := false
@@ -112,8 +111,8 @@ func (p *Output) filterBlockMatches(results []scanner.ScanResult) []scanner.Scan
 }
 
 // groupByField 按字段分组
-func (p *Output) groupByField(results []scanner.ScanResult, field string) map[string][]scanner.ScanResult {
-	groups := make(map[string][]scanner.ScanResult)
+func (p *Output) groupByField(results []core.ScanResult, field string) map[string][]core.ScanResult {
+	groups := make(map[string][]core.ScanResult)
 
 	for _, result := range results {
 		var key string
@@ -135,7 +134,7 @@ func (p *Output) groupByField(results []scanner.ScanResult, field string) map[st
 }
 
 // filterOutputKeys 过滤输出字段
-func (p *Output) filterOutputKeys(results []scanner.ScanResult) []scanner.ScanResult {
+func (p *Output) filterOutputKeys(results []core.ScanResult) []core.ScanResult {
 	if len(p.config.OutputKeys) == 0 {
 		return results
 	}
@@ -147,9 +146,9 @@ func (p *Output) filterOutputKeys(results []scanner.ScanResult) []scanner.ScanRe
 	}
 
 	// 过滤字段
-	var filtered []scanner.ScanResult
+	var filtered []core.ScanResult
 	for _, result := range results {
-		newResult := scanner.ScanResult{}
+		newResult := core.ScanResult{}
 
 		if keyMap["file"] {
 			newResult.File = result.File
@@ -183,7 +182,7 @@ func (p *Output) filterOutputKeys(results []scanner.ScanResult) []scanner.ScanRe
 }
 
 // outputGroup 输出单个组的结果
-func (p *Output) outputGroup(groupName string, results []scanner.ScanResult) error {
+func (p *Output) outputGroup(groupName string, results []core.ScanResult) error {
 	// 生成输出文件名
 	baseOutput := p.config.OutputFile
 	if baseOutput == "" {
@@ -228,7 +227,7 @@ func (p *Output) outputGroup(groupName string, results []scanner.ScanResult) err
 }
 
 // writeJSON 写入JSON文件
-func (p *Output) writeJSON(filename string, results []scanner.ScanResult) error {
+func (p *Output) writeJSON(filename string, results []core.ScanResult) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("创建JSON文件失败: %w", err)
@@ -247,7 +246,7 @@ func (p *Output) writeJSON(filename string, results []scanner.ScanResult) error 
 }
 
 // writeCSV 写入CSV文件
-func (p *Output) writeCSV(filename string, results []scanner.ScanResult) error {
+func (p *Output) writeCSV(filename string, results []core.ScanResult) error {
 	if len(results) == 0 {
 		return nil
 	}
@@ -279,7 +278,7 @@ func (p *Output) writeCSV(filename string, results []scanner.ScanResult) error {
 }
 
 // getCSVHeaders 获取CSV表头
-func (p *Output) getCSVHeaders(result scanner.ScanResult) []string {
+func (p *Output) getCSVHeaders(result core.ScanResult) []string {
 	var headers []string
 
 	// 如果指定了输出字段，使用指定的字段顺序
@@ -302,7 +301,7 @@ func (p *Output) getCSVHeaders(result scanner.ScanResult) []string {
 }
 
 // resultToCSVRecord 将结果转换为CSV记录
-func (p *Output) resultToCSVRecord(result scanner.ScanResult, headers []string) []string {
+func (p *Output) resultToCSVRecord(result core.ScanResult, headers []string) []string {
 	record := make([]string, len(headers))
 
 	for i, header := range headers {
@@ -332,7 +331,7 @@ func (p *Output) resultToCSVRecord(result scanner.ScanResult, headers []string) 
 }
 
 // printStatistics 打印统计信息
-func (p *Output) printStatistics(results []scanner.ScanResult) {
+func (p *Output) printStatistics(results []core.ScanResult) {
 	// 统计各种信息
 	sensitiveCount := 0
 	fileCount := make(map[string]bool)

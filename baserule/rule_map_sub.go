@@ -1,7 +1,7 @@
 package baserule
 
 import (
-	"privacycheck/logging"
+	"privacycheck/pkg/logging"
 	"strings"
 )
 
