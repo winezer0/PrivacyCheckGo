@@ -8,8 +8,8 @@ import (
 )
 
 // ValidateRules 验证规则配置
-func (c *RulesConfig) ValidateRules() error {
-	logging.Info("开始验证规则...")
+func (c *RuleConfig) ValidateRules() error {
+	logging.Debug("Start verifying the rules...")
 
 	var invalidRules []string
 	validRulesCount := 0
@@ -25,36 +25,36 @@ func (c *RulesConfig) ValidateRules() error {
 
 			// 检查必要字段
 			if rule.Name == "" {
-				invalidRules = append(invalidRules, fmt.Sprintf("规则组 %s: 规则缺少name字段", group.Group))
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule Group %s: The rule lacks the [name] field", group.Group))
 				continue
 			}
 
 			if rule.FRegex == "" {
-				invalidRules = append(invalidRules, fmt.Sprintf("规则组 %s, 规则 %s: 缺少f_regex字段", group.Group, rule.Name))
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule Group %s, Rule %s: The rule lacks the [f_regex] field.", group.Group, rule.Name))
 				continue
 			}
 
 			// 验证正则表达式
 			if _, err := regexp.Compile(rule.FRegex); err != nil {
-				invalidRules = append(invalidRules, fmt.Sprintf("规则组 %s, 规则 %s: 正则表达式无效 - %v", group.Group, rule.Name, err))
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule Group %s, Rule %s: The rule f_regex [f_regex] compile is error:%v", group.Group, rule.Name, err))
 			}
 		}
 	}
 
 	if len(invalidRules) > 0 {
-		logging.Error("发现无效的规则:")
+		logging.Error("Discovering invalid rules:")
 		for _, invalid := range invalidRules {
 			logging.Error(invalid)
 		}
-		return fmt.Errorf("发现 %d 个无效规则", len(invalidRules))
+		return fmt.Errorf("found invalid rules: %d", len(invalidRules))
 	}
 
-	logging.Infof("规则验证通过！共 %d 个有效规则", validRulesCount)
+	logging.Infof("rules verify pass! total valid rules: %d", validRulesCount)
 	return nil
 }
 
 // FilterRules 过滤规则
-func (c *RulesConfig) FilterRules(filterGroups, filterNames []string, sensitiveOnly bool) RuleMap {
+func (c *RuleConfig) FilterRules(filterGroups, filterNames []string, sensitiveOnly bool) RuleMap {
 	result := make(RuleMap)
 
 	// 转换过滤条件为小写
@@ -111,8 +111,8 @@ func (c *RulesConfig) FilterRules(filterGroups, filterNames []string, sensitiveO
 				}
 			}
 
-			// 设置默认的上下文长度
-			if rule.ContextLeft == 0 && rule.ContextRight == 0 && rule.Sensitive {
+			// 对于敏感信息规则设置默认的上下文长度
+			if rule.Sensitive && rule.ContextLeft <= 0 && rule.ContextRight <= 0 {
 				rule.ContextLeft = 50
 				rule.ContextRight = 50
 			}

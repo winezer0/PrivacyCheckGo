@@ -16,15 +16,13 @@ type Rule struct {
 	ContextRight int    `yaml:"context_right" json:"context_right"` // 匹配结果向右扩充字符数
 }
 
-// RuleGroup 表示规则组
-type RuleGroup struct {
+// Rules 表示规则组
+type Rules struct {
 	Group string `yaml:"group" json:"group"` // 规则组名称
 	Rule  []Rule `yaml:"rule" json:"rule"`   // 规则列表
 }
 
-// RulesConfig 表示完整的规则配置
-type RulesConfig struct {
-	Rules []RuleGroup `yaml:"rules" json:"rules"`
+// RuleConfig 表示完整的规则配置
+type RuleConfig struct {
+	Rules []Rules `yaml:"rules" json:"rules"`
 }
-
-type RuleMap map[string][]Rule

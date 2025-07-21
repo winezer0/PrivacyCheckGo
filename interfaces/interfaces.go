@@ -3,19 +3,19 @@ package interfaces
 import (
 	"privacycheck"
 	"privacycheck/config"
-	"privacycheck/core"
+	"privacycheck/scanner"
 )
 
 // Scanner 扫描器接口
 type Scanner interface {
-	Scan(files []string, config *main.CmdConfig) ([]core.ScanResult, *core.ScanStats, error)
-	GetStats() *core.ScanStats
+	Scan(files []string, config *main.CmdConfig) ([]scanner.ScanResult, *scanner.ScanStats, error)
+	GetStats() *scanner.ScanStats
 }
 
 // RuleEngine 规则引擎接口
 type RuleEngine interface {
 	LoadRules(rules []config.Rule) error
-	ApplyRules(content string, filePath string) []core.ScanResult
+	ApplyRules(content string, filePath string) []scanner.ScanResult
 	GetRulesCount() int
 	GetGroupsCount() int
 }
@@ -29,16 +29,16 @@ type FileProcessor interface {
 
 // OutputProcessor 输出处理器接口
 type OutputProcessor interface {
-	ProcessResults(results []core.ScanResult, stats *core.ScanStats, config *main.CmdConfig) error
-	FormatResults(results []core.ScanResult, format string) ([]byte, error)
+	ProcessResults(results []scanner.ScanResult, stats *scanner.ScanStats, config *main.CmdConfig) error
+	FormatResults(results []scanner.ScanResult, format string) ([]byte, error)
 }
 
 // CacheManager 缓存管理器接口
 type CacheManager interface {
-	LoadCache(filePath string) (*core.ScanCached, error)
-	SaveCache(cache *core.ScanCached, filePath string) error
-	GetCachedResult(filePath string) ([]core.ScanResult, bool)
-	SetCachedResult(filePath string, results []core.ScanResult)
+	LoadCache(filePath string) (*scanner.ScanCached, error)
+	SaveCache(cache *scanner.ScanCached, filePath string) error
+	GetCachedResult(filePath string) ([]scanner.ScanResult, bool)
+	SetCachedResult(filePath string, results []scanner.ScanResult)
 }
 
 // Logger 日志接口

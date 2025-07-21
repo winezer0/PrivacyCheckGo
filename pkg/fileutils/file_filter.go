@@ -32,15 +32,6 @@ func FilterByExtension(path string, excludeExtList []string) bool {
 	return false
 }
 
-// FileIsLarger 检查文件是否超过指定大小（MB）
-func FileIsLarger(filePath string, limitSize int) bool {
-	info, err := os.Stat(filePath)
-	if err != nil {
-		return false
-	}
-	return info.Size() > int64(limitSize*1024*1024)
-}
-
 // FilterByPathKeys 检查路径是否包含任何排除关键字，若包含则返回true表示需要排除
 func FilterByPathKeys(path string, excludeKeys []string) bool {
 	// 若排除关键字列表为空，直接返回不排除
@@ -55,6 +46,19 @@ func FilterByPathKeys(path string, excludeKeys []string) bool {
 		}
 	}
 	return false // 不包含任何关键字，无需排除
+}
+
+// FileIsLarger 检查文件是否超过指定大小（MB）
+func FileIsLarger(filePath string, limitSize int) bool {
+	if limitSize <= 0 {
+		return false
+	}
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return false
+	}
+	return info.Size() > int64(limitSize*1024*1024)
 }
 
 // GetFilesWithFilter 获取符合条件的文件列表

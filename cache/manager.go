@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"privacycheck/core"
 	"privacycheck/interfaces"
+	"privacycheck/scanner"
 )
 
 // Manager 缓存管理器实现
 type Manager struct {
-	data     *core.ScanCached
+	data     *scanner.ScanCached
 	filePath string
 	mux      sync.RWMutex
 	lastSave time.Time
@@ -25,8 +25,8 @@ type Manager struct {
 func NewManager(filePath string) interfaces.CacheManager {
 	m := &Manager{
 		filePath: filePath,
-		data: &core.ScanCached{
-			Result:     make(map[string][]core.ScanResult),
+		data: &scanner.ScanCached{
+			Result:     make(map[string][]scanner.ScanResult),
 			LastUpdate: time.Now().Format(time.RFC3339),
 		},
 		lastSave: time.Now(),
@@ -42,7 +42,7 @@ func NewManager(filePath string) interfaces.CacheManager {
 }
 
 // LoadCache 加载缓存文件
-func (m *Manager) LoadCache(filePath string) (*core.ScanCached, error) {
+func (m *Manager) LoadCache(filePath string) (*scanner.ScanCached, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -66,7 +66,7 @@ func (m *Manager) LoadCache(filePath string) (*core.ScanCached, error) {
 }
 
 // SaveCache 保存缓存文件
-func (m *Manager) SaveCache(cache *core.ScanCached, filePath string) error {
+func (m *Manager) SaveCache(cache *scanner.ScanCached, filePath string) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -91,7 +91,7 @@ func (m *Manager) SaveCache(cache *core.ScanCached, filePath string) error {
 }
 
 // GetCachedResult 获取缓存结果
-func (m *Manager) GetCachedResult(filePath string) ([]core.ScanResult, bool) {
+func (m *Manager) GetCachedResult(filePath string) ([]scanner.ScanResult, bool) {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 
@@ -100,7 +100,7 @@ func (m *Manager) GetCachedResult(filePath string) ([]core.ScanResult, bool) {
 }
 
 // SetCachedResult 设置缓存结果
-func (m *Manager) SetCachedResult(filePath string, results []core.ScanResult) {
+func (m *Manager) SetCachedResult(filePath string, results []scanner.ScanResult) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 

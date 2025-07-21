@@ -1,4 +1,4 @@
-package core
+package scanner
 
 import "time"
 

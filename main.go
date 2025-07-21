@@ -5,36 +5,38 @@ import (
 	"fmt"
 	"github.com/jessevdk/go-flags"
 	"os"
-	"privacycheck/pkg/logging"
-	"runtime"
-	"strings"
-
-	"privacycheck/config"
-	"privacycheck/fileutils"
+	"privacycheck/baserule"
 	"privacycheck/output"
+	"privacycheck/pkg/fileutils"
+	"privacycheck/pkg/logging"
 	"privacycheck/scanner"
+	"runtime"
 )
 
 // CmdConfig 表示程序配置
 type CmdConfig struct {
 	// 基础配置
-	RulesFile   string `short:"r" long:"rules" description:"规则文件路径 (默认: config.yaml, 支持 .yaml/.yml/.json 格式)" default:"config.yaml"`
-	Target      string `short:"t" long:"target" description:"[必需] 待扫描的目标文件或目录路径"`
-	ProjectName string `short:"p" long:"project-name" description:"项目名称，用于生成输出文件名和缓存文件名 (默认: default_project)" default:"default_project"`
+	RulesFile string `short:"r" long:"rules" description:"规则文件路径 (默认: config.yaml)" default:"config.yaml"`
 
-	// 性能配置
-	Workers   int  `short:"w" long:"workers" description:"并发工作线程数 (范围: 1-100, 默认: CPU核心数)" default:"0"`
-	LimitSize int  `short:"l" long:"limit-size" description:"单文件大小限制，单位MB (范围: 0-1000, 0表示无限制, 默认: 5)" default:"5"`
-	SaveCache bool `short:"s" long:"save-cache" description:"启用扫描结果缓存，支持断点续扫 (推荐大项目使用)"`
-	ChunkMode bool `short:"k" long:"chunk-mode" description:"启用分块读取模式，降低内存占用但增加扫描时间"`
+	ProjectPath string `short:"p" long:"project-path" description:"项目路径，待扫描的目标文件或目录路径[必需] "`
+	ProjectName string `short:"n" long:"project-name" description:"项目名称，用于生成输出文件名和缓存文件名 (默认: default_project)" default:"default_project"`
 
-	// 过滤配置
-	ExcludeExt []string `short:"e" long:"exclude-ext" description:"排除的文件扩展名列表 (如: .tmp,.log,.bak)"`
+	// 过滤文件
+	LimitSize   int      `long:"ls" description:"单文件大小限制 单位:MB (0表示无限制, 默认: 5)" default:"5"`
+	ExcludeExt  []string `long:"ee" description:"排除的文件扩展名列表 (支持多个关键字 如: .tmp,.log,.bak ...)"`
+	ExcludePath []string `long:"ep" description:"排除的路径关键字列表 (支持多个关键字 如: /tmp,/cache)"`
+
+	// 读取配置
+	SaveCache bool `short:"s" long:"save-cache" description:"启用扫描结果缓存, 支持断点续扫, 推荐大项目使用"`
+	ChunkMode bool `short:"k" long:"chunk-mode" description:"启用分块读取模式, 降低内存占用, 但增加扫描时间"`
 
 	// 筛选规则
-	SensitiveOnly bool     `short:"S" long:"sensitive-only" description:"仅启用标记为敏感信息的规则 (sensitive: true)"`
 	FilterNames   []string `short:"N" long:"filter-names" description:"按规则名称关键字过滤 (支持多个关键字)"`
 	FilterGroups  []string `short:"G" long:"filter-groups" description:"按规则组名称关键字过滤 (支持多个关键字)"`
+	SensitiveOnly bool     `short:"S" long:"sensitive-only" description:"仅启用标记为敏感信息的规则 (sensitive: true)"`
+
+	// 性能配置
+	Workers int `short:"w" long:"workers" description:"并发工作线程数 (默认: 8)" default:"8"`
 
 	// 输出配置
 	OutputFile    string   `short:"o" long:"output-file" description:"输出文件路径 (默认: {项目名称}.{格式})"`
@@ -44,13 +46,10 @@ type CmdConfig struct {
 	FormatResults bool     `short:"F" long:"format-results" description:"格式化输出结果，清理多余的引号和空格 (默认: 启用)"`
 	BlockMatches  []string `short:"b" long:"block-matches" description:"匹配结果黑名单过滤关键字列表"`
 
-	// 辅助工具
-	Version bool `short:"v" long:"version" description:"显示版本信息并退出"`
-
 	// 日志配置
-	LogLevel      string `long:"log-level" description:"日志级别" choice:"debug" choice:"info" choice:"warn" choice:"error" default:"info"`
-	LogFile       string `long:"log-file" description:"日志文件路径 (为空则不写入文件)"`
-	ConsoleFormat string `long:"console-format" description:"控制台日志格式 (T=时间,L=级别,C=调用者,M=消息,F=函数, 'off'=关闭控制台输出)" default:"TLM"`
+	LogFile   string `long:"log-file" description:"日志文件 (为空则不写入文件)  default:""`
+	LogLevel  string `long:"log-level" description:"日志级别 (debug/info/warn/error)" choice:"debug" choice:"info" choice:"warn" choice:"error" default:"info"`
+	LogFormat string `long:"log-format" description:"控制台日志格式 (T=时间,L=级别,C=调用者,M=消息,F=函数,off=关闭)" default:"TLM"`
 }
 
 // ParseArgs 解析命令行参数
@@ -62,7 +61,7 @@ func ParseArgs() (*CmdConfig, error) {
 	opts.FormatResults = true
 
 	parser := flags.NewParser(&opts, flags.Default)
-	parser.Usage = "PrivacyCheck - 高性能隐私信息检测工具\n\n使用示例:\n  privacycheck -t /path/to/project\n  privacycheck -t /path/to/project -w 8 -s\n  privacycheck -t /path/to/project -S -f csv"
+	parser.Usage = "PrivacyCheck - High-performance sensitive information check tool"
 
 	// 解析命令行参数
 	_, err := parser.Parse()
@@ -73,67 +72,44 @@ func ParseArgs() (*CmdConfig, error) {
 				return nil, nil // 显示帮助信息后退出
 			}
 		}
-		return nil, fmt.Errorf("解析命令行参数失败: %w", err)
-	}
-
-	// 处理版本信息显示
-	if opts.Version {
-		fmt.Println(config.GetVersionInfo())
-		return nil, nil
+		return nil, fmt.Errorf("failed to parse command-line parameters: %w", err)
 	}
 
 	// 验证参数
-	if err := validateConfig(&opts); err != nil {
+	if err := checkArgs(&opts); err != nil {
 		return nil, err
 	}
 
 	return &opts, nil
 }
 
-// validateConfig 验证配置参数
-func validateConfig(opts *CmdConfig) error {
-	// 验证必需参数
-	if opts.Target == "" && !opts.Version {
-		return fmt.Errorf("必须指定 --target 参数")
-	}
-
-	// 验证文件/目录是否存在
-	if opts.Target != "" {
-		if _, err := os.Stat(opts.Target); os.IsNotExist(err) {
-			return fmt.Errorf("目标路径不存在: %s", opts.Target)
-		}
-	}
-
+// checkArgs 验证配置参数
+func checkArgs(opts *CmdConfig) error {
 	// 验证工作线程数
 	if opts.Workers <= 0 {
 		opts.Workers = runtime.NumCPU()
-	} else if opts.Workers > 100 {
-		return fmt.Errorf("工作线程数不能超过100，当前值: %d", opts.Workers)
 	}
 
-	// 验证文件大小限制
-	if opts.LimitSize < 0 {
-		return fmt.Errorf("文件大小限制不能为负数，当前值: %d", opts.LimitSize)
-	} else if opts.LimitSize > 1000 {
-		return fmt.Errorf("文件大小限制不能超过1000MB，当前值: %d", opts.LimitSize)
+	// 验证必需参数
+	if opts.ProjectPath == "" {
+		return fmt.Errorf("the project path must be specified")
 	}
 
-	// 验证输出格式
-	if opts.OutputFormat != "json" && opts.OutputFormat != "csv" {
-		return fmt.Errorf("不支持的输出格式: %s，支持的格式: json, csv", opts.OutputFormat)
-	}
-
-	// 验证日志级别
-	validLogLevels := []string{"debug", "info", "warn", "error"}
-	validLevel := false
-	for _, level := range validLogLevels {
-		if opts.LogLevel == level {
-			validLevel = true
-			break
+	// 验证文件/目录是否存在
+	if opts.ProjectPath != "" {
+		if exists, _, _ := fileutils.PathExists(opts.ProjectPath); !exists {
+			return fmt.Errorf("the project path not exist: %s", opts.ProjectPath)
 		}
 	}
-	if !validLevel {
-		return fmt.Errorf("无效的日志级别: %s，支持的级别: %s", opts.LogLevel, strings.Join(validLogLevels, ", "))
+
+	// 设置默认项目名称
+	if opts.ProjectName == "" {
+		opts.ProjectName = fileutils.GetPathLastDir(opts.ProjectPath)
+	}
+
+	// 设置默认输出文件名
+	if opts.OutputFile == "" {
+		opts.OutputFile = opts.ProjectName + "." + opts.OutputFormat
 	}
 
 	// 验证输出键的有效性
@@ -151,16 +127,10 @@ func validateConfig(opts *CmdConfig) error {
 
 		for _, key := range opts.OutputKeys {
 			if !allowedKeys[key] {
-				return fmt.Errorf("无效的输出键: %s，允许的键: file, group, rule_name, match, context, position, line_number, sensitive", key)
+				return fmt.Errorf("invalid output key: %s, allowed keys: file, group, rule_name, match, context, position, line_number, sensitive", key)
 			}
 		}
 	}
-
-	// 设置默认输出文件名
-	if opts.OutputFile == "" {
-		opts.OutputFile = opts.ProjectName + "." + opts.OutputFormat
-	}
-
 	return nil
 }
 
@@ -168,7 +138,7 @@ func main() {
 	// 解析命令行参数
 	cmdConfig, err := ParseArgs()
 	if err != nil {
-		fmt.Printf("参数解析失败: %v\n", err)
+		fmt.Printf("Parameter parsing failed: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -178,30 +148,42 @@ func main() {
 	}
 
 	// 初始化日志记录器
-	logCfg := logging.NewLogConfig(cmdConfig.LogLevel, cmdConfig.LogFile, cmdConfig.ConsoleFormat)
+	logCfg := logging.NewLogConfig(cmdConfig.LogLevel, cmdConfig.LogFile, cmdConfig.LogFormat)
 	if err := logging.InitLogger(logCfg); err != nil {
 		// 这里不能使用logging，因为还没初始化
-		fmt.Printf("初始化日志失败: %v\n", err)
+		fmt.Printf("init logger failed: %v\n", err)
 		os.Exit(1)
 	}
 	defer logging.Sync()
 
-	logging.Info("PrivacyCheck Go版本启动")
-	logging.Infof("目标路径: %s", cmdConfig.Target)
-	logging.Infof("项目名称: %s", cmdConfig.ProjectName)
+	logging.Infof("project name: %sproject path: %s", cmdConfig.ProjectName, cmdConfig.ProjectPath)
+
+	// 如果配置文件不存在，创建默认配置文件
+	if !fileutils.FileExists(cmdConfig.RulesFile) {
+		logging.Warnf("config file %s not exist, will create default config ...", cmdConfig.RulesFile)
+		if err := baserule.CreateDefaultConfig(cmdConfig.RulesFile); err != nil {
+			logging.Errorf("create default config %s error:%v", cmdConfig.RulesFile, err)
+		}
+		logging.Infof("default config file has been created: %s", cmdConfig.RulesFile)
+		os.Exit(0)
+	}
 
 	// 加载规则配置
-	rulesConfig, err := config.LoadRulesConfig(cmdConfig.RulesFile)
+	rulesConfig, err := baserule.LoadRulesYaml(cmdConfig.RulesFile)
 	if err != nil {
-		logging.Errorf("加载规则配置失败: %v", err)
+		logging.Errorf("Loading the rule config failed: %v", err)
 		os.Exit(1)
 	}
 
-	logging.Infof("加载规则配置: %d 个规则组", len(rulesConfig.Rules))
+	if len(rulesConfig.Rules) == 0 {
+		logging.Errorf("rule config is empty, please check your rules")
+		os.Exit(1)
+	}
+	logging.Infof("Load rule file rules group: %d", len(rulesConfig.Rules))
 
 	// 验证规则
 	if err := rulesConfig.ValidateRules(); err != nil {
-		logging.Errorf("规则验证失败: %v", err)
+		logging.Errorf("rule content validation failed: %v", err)
 		os.Exit(1)
 	}
 
@@ -209,10 +191,10 @@ func main() {
 	filteredRules := rulesConfig.FilterRules(cmdConfig.FilterGroups, cmdConfig.FilterNames, cmdConfig.SensitiveOnly)
 	ruleCount := filteredRules.CountRules()
 
-	logging.Infof("过滤后规则: %d 个规则组, %d 个规则", len(filteredRules), ruleCount)
+	logging.Infof("filtered rules group: %d, rules count:%d", len(filteredRules), ruleCount)
 
 	if ruleCount == 0 {
-		logging.Error("没有可用的规则，请检查过滤条件")
+		logging.Error("No rules be selected. Please check the filter conditions.")
 		os.Exit(1)
 	}
 
@@ -220,18 +202,18 @@ func main() {
 	filteredRules.PrintRulesInfo()
 
 	// 获取待扫描文件
-	files, err := fileutils.GetFilesWithFilter(cmdConfig.Target, cmdConfig.ExcludeExt, cmdConfig.LimitSize)
+	files, err := fileutils.GetFilesWithFilter(cmdConfig.ProjectPath, cmdConfig.ExcludeExt, cmdConfig.ExcludePath, cmdConfig.LimitSize)
 	if err != nil {
-		logging.Errorf("获取文件列表失败: %v", err)
+		logging.Errorf("failed to get files with filter: %v", err)
 		os.Exit(1)
 	}
 
 	if len(files) == 0 {
-		logging.Warn("没有找到符合条件的文件")
-		return
+		logging.Warn("no files meeting the requirements were found.")
+		os.Exit(0)
 	}
 
-	logging.Infof("发现 %d 个待扫描文件", len(files))
+	logging.Infof("found %d files to be scanned", len(files))
 
 	// 创建扫描器
 	scannerInstance, err := scanner.NewScanner(filteredRules, cmdConfig)

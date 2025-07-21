@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"privacycheck/pkg/fileutils"
 	"privacycheck/pkg/logging"
 	"strings"
 	"sync"
 
-	"privacycheck/fileutils"
 	"privacycheck/interfaces"
 )
 

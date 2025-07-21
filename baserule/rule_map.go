@@ -5,9 +5,11 @@ import (
 	"strings"
 )
 
+type RuleMap map[string][]Rule
+
 // PrintRulesInfo 打印规则信息
 func (m *RuleMap) PrintRulesInfo() {
-	logging.Info("本次扫描使用的规则:")
+	logging.Info("The rules used for this scan:")
 
 	for groupName, ruleList := range *m {
 		for _, rule := range ruleList {
