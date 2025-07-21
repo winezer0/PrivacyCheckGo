@@ -1,8 +1,8 @@
 package output
 
 import (
+	"privacycheck/internal/scanner"
 	"privacycheck/pkg/logging"
-	"privacycheck/scanner"
 )
 
 // ruleStats 规则统计结构

@@ -1,7 +1,7 @@
 package output
 
 import (
-	"privacycheck/scanner"
+	"privacycheck/internal/scanner"
 	"strings"
 )
 

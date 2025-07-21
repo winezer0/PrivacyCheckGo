@@ -2,7 +2,7 @@ package scanner
 
 import (
 	"fmt"
-	"privacycheck/baserule"
+	"privacycheck/internal/baserule"
 	"privacycheck/pkg/fileutils"
 	"privacycheck/pkg/logging"
 	"sync"
@@ -48,14 +48,9 @@ func NewScanner(rules baserule.RuleMap, config *ScanConfig) (*Scanner, error) {
 // Scan 执行扫描
 func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 	// 转换文件路径为FileInfo
-	var fileInfos []fileutils.FileInfo
-	for _, path := range filePaths {
-		fileInfo, err := fileutils.PathToFileInfo(path)
-		if err != nil {
-			logging.Warnf("获取文件信息失败 %s: %v", path, err)
-			continue
-		}
-		fileInfos = append(fileInfos, fileInfo)
+	fileInfos, err := fileutils.ConvertPathsToInfos(filePaths, s.config.Workers)
+	if len(fileInfos) == 0 {
+		logging.Warnf("获取文件信息失败 Error: %v", err)
 	}
 	s.stats.TotalFiles = len(fileInfos)
 

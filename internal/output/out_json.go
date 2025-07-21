@@ -2,8 +2,8 @@ package output
 
 import (
 	"fmt"
+	"privacycheck/internal/scanner"
 	"privacycheck/pkg/fileutils"
-	"privacycheck/scanner"
 )
 
 // writeJSON 写入JSON文件

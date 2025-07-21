@@ -128,14 +128,12 @@ rules:
         loaded: true
         f_regex: (((access)(|-|_)(key)(|-|_)(id|secret))|(LTAI[a-z0-9]{12,20}))
         sensitive: true
-        ignore_case: true
         context_left: 50
         context_right: 50
       - name: API Key
         loaded: true
         f_regex: '((api|key|token|secret|auth)[\w\-_]*[\s]*[:=][\s]*[''"]?[a-zA-Z0-9\-_]{16,}[''"]?)'
         sensitive: true
-        ignore_case: true
         context_left: 50
         context_right: 50
   - group: System Information
@@ -144,7 +142,6 @@ rules:
         loaded: true
         f_regex: '[^0-9]((127\.0\.0\.1)|(10\.\d{1,3}\.\d{1,3}\.\d{1,3})|(172\.((1[6-9])|(2\d)|(3[01]))\.\d{1,3}\.\d{1,3})|(192\.168\.\d{1,3}\.\d{1,3}))'
         sensitive: true
-        ignore_case: true
         context_left: 50
         context_right: 50
 ```
@@ -154,7 +151,6 @@ rules:
 - `f_regex`: 正则表达式（必需）
 - `sensitive`: 是否为敏感信息（默认：false）
 - `loaded`: 是否启用规则（默认：true）
-- `ignore_case`: 忽略大小写（默认：true）
 - `context_left`: 向左扩展的上下文字符数
 - `context_right`: 向右扩展的上下文字符数
 

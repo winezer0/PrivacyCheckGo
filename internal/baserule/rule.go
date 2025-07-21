@@ -11,7 +11,6 @@ type Rule struct {
 	Engine       string `yaml:"engine" json:"engine"`               // 规则匹配引擎(未实现)
 	Sensitive    bool   `yaml:"sensitive" json:"sensitive"`         // 是否敏感信息
 	Loaded       bool   `yaml:"loaded" json:"loaded"`               // 是否启用规则
-	IgnoreCase   bool   `yaml:"ignore_case" json:"ignore_case"`     // 正则匹配时忽略大小写
 	ContextLeft  int    `yaml:"context_left" json:"context_left"`   // 匹配结果向左扩充字符数
 	ContextRight int    `yaml:"context_right" json:"context_right"` // 匹配结果向右扩充字符数
 }

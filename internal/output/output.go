@@ -3,9 +3,9 @@ package output
 import (
 	"fmt"
 	"path/filepath"
+	"privacycheck/internal/scanner"
 	"privacycheck/pkg/fileutils"
 	"privacycheck/pkg/logging"
-	"privacycheck/scanner"
 	"strings"
 )
 

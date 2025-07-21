@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"privacycheck/baserule"
+	"privacycheck/internal/baserule"
 )
 
 // RuleEngine 规则引擎
@@ -38,9 +38,8 @@ func (e *RuleEngine) compileRegexes() error {
 
 			// 编译正则表达式
 			pattern := rule.FRegex
-			if rule.IgnoreCase {
-				pattern = "(?i)" + pattern
-			}
+			//IgnoreCase
+			pattern = "(?i)" + pattern
 			// 添加多行模式
 			pattern = "(?m)" + pattern
 

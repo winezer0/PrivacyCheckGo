@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"privacycheck/pkg/logging"
+	"sync"
 	"time"
 )
 
@@ -46,4 +47,58 @@ func PathToFileInfo(path string) (FileInfo, error) {
 		Encoding: encoding,
 		ModeTime: fileStat.ModTime(),
 	}, nil
+}
+
+// ConvertPathsToInfos 并发处理文件路径的同时支持指定最大并发线程数（goroutine 数量
+func ConvertPathsToInfos(filePaths []string, concurrencyLimit int) ([]FileInfo, error) {
+	resultChan := make(chan struct {
+		index    int
+		fileInfo FileInfo
+	})
+	errChan := make(chan error, len(filePaths))
+	sem := make(chan struct{}, concurrencyLimit) // 控制并发数的信号量
+
+	var wg sync.WaitGroup
+
+	for i, path := range filePaths {
+		wg.Add(1)
+		go func(i int, path string) {
+			defer wg.Done()
+			sem <- struct{}{}        // 获取一个并发槽
+			defer func() { <-sem }() // 释放并发槽
+
+			fileInfo, err := PathToFileInfo(path)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			resultChan <- struct {
+				index    int
+				fileInfo FileInfo
+			}{i, fileInfo}
+		}(i, path)
+	}
+
+	// 启动一个 goroutine 等待所有任务完成
+	go func() {
+		wg.Wait()
+		close(resultChan)
+		close(errChan)
+	}()
+
+	// 收集结果（保持顺序）
+	results := make([]FileInfo, len(filePaths))
+	for r := range resultChan {
+		results[r.index] = r.fileInfo
+	}
+
+	// 检查是否有错误
+	var firstErr error
+	select {
+	case err := <-errChan:
+		firstErr = err
+	default:
+	}
+
+	return results, firstErr
 }
