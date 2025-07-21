@@ -47,19 +47,14 @@ func NewScanner(rules baserule.RuleMap, config *ScanConfig) (*Scanner, error) {
 
 // Scan 执行扫描
 func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
-	// 转换文件路径为FileInfo
-	fileInfos, err := fileutils.ConvertPathsToInfos(filePaths, s.config.Workers)
-	if len(fileInfos) == 0 {
-		logging.Warnf("failed to get file info Error: %v", err)
-	}
-	s.stats.TotalFiles = len(fileInfos)
+	s.stats.TotalFiles = len(filePaths)
 
-	logging.Infof("starting scan, found %d valid files", len(fileInfos))
+	logging.Infof("starting scan, found %d files to process", len(filePaths))
 	logging.Infof("using %d worker threads", s.config.Workers)
 
-	// 创建工作池
-	jobs := make(chan fileutils.FileInfo, len(fileInfos))
-	results := make(chan ScanJob, len(fileInfos))
+	// 创建工作池 - 直接使用文件路径
+	jobs := make(chan string, 100) // 使用缓冲通道，避免阻塞
+	results := make(chan ScanJob, 100)
 
 	// 启动工作协程
 	var wg sync.WaitGroup
@@ -68,11 +63,11 @@ func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 		go s.worker(jobs, results, &wg)
 	}
 
-	// 发送任务
+	// 发送任务 - 直接发送文件路径
 	go func() {
 		defer close(jobs)
-		for _, file := range fileInfos {
-			jobs <- file
+		for _, filePath := range filePaths {
+			jobs <- filePath
 		}
 	}()
 
@@ -108,16 +103,23 @@ func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 	return s.results, nil
 }
 
-// worker 工作协程
-func (s *Scanner) worker(jobs <-chan fileutils.FileInfo, results chan<- ScanJob, wg *sync.WaitGroup) {
+// worker 工作协程 - 直接处理文件路径
+func (s *Scanner) worker(jobs <-chan string, results chan<- ScanJob, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for file := range jobs {
-		job := ScanJob{FilePath: file.Path}
+	for filePath := range jobs {
+		job := ScanJob{FilePath: filePath}
+
+		// 检查文件是否有效
+		if !fileutils.FileExists(filePath) {
+			job.Error = fmt.Errorf("file %s is not valid or is a directory", filePath)
+			results <- job
+			continue
+		}
 
 		// 检查缓存
 		if s.cache != nil {
-			if cachedResults, exists := s.cache.GetCachedResult(file.Path); exists {
+			if cachedResults, exists := s.cache.GetCachedResult(filePath); exists {
 				job.Results = cachedResults
 				results <- job
 				continue
@@ -125,36 +127,42 @@ func (s *Scanner) worker(jobs <-chan fileutils.FileInfo, results chan<- ScanJob,
 		}
 
 		// 执行扫描
-		job.Results, job.Error = s.scanFile(file)
+		job.Results, job.Error = s.scanFile(filePath)
 
 		results <- job
 	}
 }
 
-// scanFile 扫描单个文件
-func (s *Scanner) scanFile(fileInfo fileutils.FileInfo) ([]ScanResult, error) {
+// scanFile 扫描单个文件 - 直接接受文件路径
+func (s *Scanner) scanFile(filePath string) ([]ScanResult, error) {
 	var results []ScanResult
+
+	// 获取文件大小和编码信息
+	fileInfo, err := fileutils.PathToFileInfo(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file size %s: %w", filePath, err)
+	}
 
 	// 判断是否启用分块读取以及文件大小是否超过阈值
 	chunkThreshold := int64(s.config.ChunkLimit) * 1024 * 1024 // 转换为字节
 	if s.config.ChunkLimit > 0 && fileInfo.Size > chunkThreshold {
 		const chunkSize = 1024 * 1024 // 1MB per chunk
-		err := fileutils.ReadFileByChunk(fileInfo.Path, fileInfo.Encoding, chunkSize, func(chunk fileutils.ChunkInfo) error {
+		err := fileutils.ReadFileByChunk(filePath, fileInfo.Encoding, chunkSize, func(chunk fileutils.ChunkInfo) error {
 			// 对每个块应用规则，传入正确的行号偏移
-			chunkResults := s.engine.ApplyRules(chunk.Content, fileInfo.Path, int(chunk.StartOffset), chunk.StartLine)
+			chunkResults := s.engine.ApplyRules(chunk.Content, filePath, int(chunk.StartOffset), chunk.StartLine)
 			results = append(results, chunkResults...)
 			return nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to read the large file %s error: %w", fileInfo.Path, err)
+			return nil, fmt.Errorf("failed to read the large file %s error: %w", filePath, err)
 		}
 	} else {
 		// 小文件或禁用分块读取时，直接读取全部内容
-		content, err := fileutils.ReadFileWithEncoding(fileInfo.Path, fileInfo.Encoding)
+		content, err := fileutils.ReadFileWithEncoding(filePath, fileInfo.Encoding)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read the file %s error: %w", fileInfo.Path, err)
+			return nil, fmt.Errorf("failed to read the file %s error: %w", filePath, err)
 		}
-		results = s.engine.ApplyRules(content, fileInfo.Path, 0, 1)
+		results = s.engine.ApplyRules(content, filePath, 0, 1)
 	}
 
 	return results, nil
