@@ -45,14 +45,14 @@ func (e *RuleEngine) compileRegexes() error {
 
 			regex, err := regexp.Compile(pattern)
 			if err != nil {
-				return fmt.Errorf("编译正则表达式失败 [%s:%s]: %w", groupName, rule.Name, err)
+				return fmt.Errorf("failed to compile regex [%s:%s]: %w", groupName, rule.Name, err)
 			}
 
 			e.compiledReg[key] = regex
 		}
 	}
 
-	logging.Infof("成功编译 %d 个正则表达式", len(e.compiledReg))
+	logging.Infof("successfully compiled %d regex patterns", len(e.compiledReg))
 	return nil
 }
 

@@ -56,14 +56,14 @@ func (m *CacheManager) LoadCache() error {
 
 	data, err := fileutils.ReadFile(m.cacheFile)
 	if err != nil {
-		return fmt.Errorf("读取缓存文件[%s]失败: %w", m.cacheFile, err)
+		return fmt.Errorf("failed to read cache file [%s]: %w", m.cacheFile, err)
 	}
 
 	if err := json.Unmarshal(data, m.cacheData); err != nil {
-		return fmt.Errorf("解析缓存文件[%s]失败: %w", m.cacheFile, err)
+		return fmt.Errorf("failed to parse cache file [%s]: %w", m.cacheFile, err)
 	}
 
-	logging.Infof("加载缓存文件[%s]完成: 已缓存结果数: %d, 缓存更新时间: %s", m.cacheFile, len(m.cacheData.Result), m.cacheData.LastUpdate)
+	logging.Infof("cache file [%s] loaded successfully: cached results: %d, last update: %s", m.cacheFile, len(m.cacheData.Result), m.cacheData.LastUpdate)
 
 	return nil
 }
@@ -77,7 +77,7 @@ func (m *CacheManager) SaveCache() error {
 	m.lastSave = time.Now()
 	m.cacheData.LastUpdate = time.Now().Format(time.RFC3339)
 	if err := fileutils.WriteJSONFile(m.cacheFile, m.cacheData); err != nil {
-		return fmt.Errorf("写入缓存文件失败: %w", err)
+		return fmt.Errorf("failed to write cache file: %w", err)
 	}
 	m.dirty = false
 	return nil

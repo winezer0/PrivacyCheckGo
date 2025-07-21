@@ -23,7 +23,7 @@ func (p *Output) filterBlockMatches(results []scanner.ScanResult) []scanner.Scan
 		}
 	}
 
-	logging.Infof("黑名单过滤: %d -> %d", len(results), len(filtered))
+	logging.Infof("blacklist filtering: %d -> %d", len(results), len(filtered))
 	return filtered
 }
 

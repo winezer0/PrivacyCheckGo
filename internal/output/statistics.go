@@ -54,11 +54,11 @@ func (p *Output) calculateStatistics(results []scanner.ScanResult) *statisticsDa
 
 // displayStatistics 显示统计信息
 func (p *Output) displayStatistics(stats *statisticsData, results []scanner.ScanResult) {
-	logging.Info("=== 扫描结果统计 ===")
-	logging.Infof("总结果数: %d", len(results))
-	logging.Infof("敏感信息数: %d", stats.sensitiveCount)
-	logging.Infof("涉及文件数: %d", len(stats.fileCount))
-	logging.Infof("规则组数: %d", len(stats.groupCount))
+	logging.Info("=== Scan Results Statistics ===")
+	logging.Infof("total results: %d", len(results))
+	logging.Infof("sensitive information: %d", stats.sensitiveCount)
+	logging.Infof("files involved: %d", len(stats.fileCount))
+	logging.Infof("rule groups: %d", len(stats.groupCount))
 
 	// 按规则组统计
 	p.displayGroupStatistics(stats.groupCount)
@@ -71,7 +71,7 @@ func (p *Output) displayStatistics(stats *statisticsData, results []scanner.Scan
 
 // displayGroupStatistics 显示规则组统计
 func (p *Output) displayGroupStatistics(groupCount map[string]int) {
-	logging.Info("按规则组统计:")
+	logging.Info("statistics by rule group:")
 	for group, count := range groupCount {
 		logging.Infof("  %s: %d", group, count)
 	}
@@ -79,7 +79,7 @@ func (p *Output) displayGroupStatistics(groupCount map[string]int) {
 
 // displayTopRules 显示最常触发的规则
 func (p *Output) displayTopRules(ruleCount map[string]int) {
-	logging.Info("最常触发的规则:")
+	logging.Info("most frequently triggered rules:")
 
 	topRules := p.sortRulesByCount(ruleCount)
 	p.showTopRules(topRules, 5)

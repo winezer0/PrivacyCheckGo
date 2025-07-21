@@ -50,12 +50,12 @@ func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 	// 转换文件路径为FileInfo
 	fileInfos, err := fileutils.ConvertPathsToInfos(filePaths, s.config.Workers)
 	if len(fileInfos) == 0 {
-		logging.Warnf("获取文件信息失败 Error: %v", err)
+		logging.Warnf("failed to get file info Error: %v", err)
 	}
 	s.stats.TotalFiles = len(fileInfos)
 
-	logging.Infof("开始扫描，共发现 %d 个有效文件", len(fileInfos))
-	logging.Infof("使用线程数: %d", s.config.Workers)
+	logging.Infof("starting scan, found %d valid files", len(fileInfos))
+	logging.Infof("using %d worker threads", s.config.Workers)
 
 	// 创建工作池
 	jobs := make(chan fileutils.FileInfo, len(fileInfos))
@@ -97,12 +97,12 @@ func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 	// 最终保存缓存
 	if s.cache != nil {
 		if err := s.cache.ForceSave(); err != nil {
-			logging.Warnf("保存最终缓存失败: %v", err)
+			logging.Warnf("failed to save final cache: %v", err)
 		}
 	}
 
 	s.stats.ElapsedTime = time.Since(s.stats.StartTime)
-	logging.Infof("扫描完成！总用时: %v, 发现结果: %d 个",
+	logging.Infof("scan completed! total time: %v, found %d results",
 		s.stats.ElapsedTime, len(s.results))
 
 	return s.results, nil
@@ -152,7 +152,7 @@ func (s *Scanner) scanFile(fileInfo fileutils.FileInfo) ([]ScanResult, error) {
 		// 小文件或禁用分块读取时，直接读取全部内容
 		content, err := fileutils.ReadFileWithEncoding(fileInfo.Path, fileInfo.Encoding)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read the file %s error: %w", fileInfo.Path, err)
+			return nil, fmt.Errorf("failed to read the file %s error: %w", fileInfo.Path, err)
 		}
 		results = s.engine.ApplyRules(content, fileInfo.Path, 0, 1)
 	}
@@ -167,7 +167,7 @@ func (s *Scanner) processJobResult(job ScanJob) {
 	s.statsMux.Unlock()
 
 	if job.Error != nil {
-		logging.Warnf("扫描文件失败 %s: %v", job.FilePath, job.Error)
+		logging.Warnf("failed to scan file %s: %v", job.FilePath, job.Error)
 		return
 	}
 
@@ -183,7 +183,7 @@ func (s *Scanner) processJobResult(job ScanJob) {
 
 		// 定期保存缓存
 		if err := s.cache.AutoSave(); err != nil {
-			logging.Warnf("保存缓存失败: %v", err)
+			logging.Warnf("failed to save cache: %v", err)
 		}
 	}
 }
@@ -222,7 +222,7 @@ func (s *Scanner) printProgress() {
 		remaining = avgTime * time.Duration(stats.TotalFiles-stats.ProcessedFiles)
 	}
 
-	logging.Infof("当前进度: %d/%d (%.2f%%) 已用时长: %v 预计剩余: %v 发现结果: %d",
+	logging.Infof("progress: %d/%d (%.2f%%) elapsed: %v remaining: %v results: %d",
 		stats.ProcessedFiles, stats.TotalFiles, percent,
 		elapsed.Truncate(time.Second), remaining.Truncate(time.Second),
 		stats.TotalResults)

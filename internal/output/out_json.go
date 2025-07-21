@@ -9,7 +9,7 @@ import (
 // writeJSON 写入JSON文件
 func (p *Output) writeJSON(filename string, results []scanner.ScanResult) error {
 	if err := fileutils.WriteJSONFile(filename, results); err != nil {
-		return fmt.Errorf("写入JSON文件失败: %w", err)
+		return fmt.Errorf("failed to write JSON file: %w", err)
 	}
 	return nil
 }

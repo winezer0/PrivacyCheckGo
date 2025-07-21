@@ -25,7 +25,7 @@ func (p *Output) writeCSV(filename string, results []scanner.ScanResult) error {
 
 	// 使用fileutils写入CSV
 	if err := fileutils.WriteCSVFile(filename, headers, records); err != nil {
-		return fmt.Errorf("写入CSV文件失败: %w", err)
+		return fmt.Errorf("failed to write CSV file: %w", err)
 	}
 
 	return nil

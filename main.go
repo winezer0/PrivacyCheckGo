@@ -157,7 +157,7 @@ func main() {
 	}
 	defer logging.Sync()
 
-	logging.Infof("project name: %sproject path: %s", cmdConfig.ProjectName, cmdConfig.ProjectPath)
+	logging.Infof("project name: %s, project path: %s", cmdConfig.ProjectName, cmdConfig.ProjectPath)
 
 	// 如果配置文件不存在，创建默认配置文件
 	if !fileutils.FileExists(cmdConfig.RulesFile) {
@@ -206,7 +206,7 @@ func main() {
 	scannerConfig := newScannerConfig(cmdConfig)
 	scannerInstance, err := scanner.NewScanner(filteredRules, scannerConfig)
 	if err != nil {
-		logging.Errorf("创建扫描器失败: %v", err)
+		logging.Errorf("failed to create scanner: %v", err)
 		os.Exit(1)
 	}
 
@@ -232,26 +232,26 @@ func main() {
 	// 执行扫描
 	results, err := scannerInstance.Scan(files)
 	if err != nil {
-		logging.Errorf("扫描失败: %v", err)
+		logging.Errorf("scan failed: %v", err)
 		os.Exit(1)
 	}
 
 	// 获取扫描统计信息
 	stats := scannerInstance.GetStats()
-	logging.Infof("扫描完成，发现 %d 个结果", len(results))
+	logging.Infof("scan completed, found %d results", len(results))
 
 	// 处理输出
 	if len(results) > 0 {
 		outputProcessor := newOutputConfig(cmdConfig)
 		if err := outputProcessor.ProcessResults(results, stats); err != nil {
-			logging.Errorf("输出结果失败: %v", err)
+			logging.Errorf("failed to output results: %v", err)
 			os.Exit(1)
 		}
 	} else {
-		logging.Info("未发现任何敏感信息")
+		logging.Info("no sensitive information found")
 	}
 
-	logging.Info("程序执行完成")
+	logging.Info("program execution completed")
 }
 
 // newScannerConfig 从命令行配置创建扫描器配置

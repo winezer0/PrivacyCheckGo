@@ -23,7 +23,7 @@ type Output struct {
 // ProcessResults 处理扫描结果
 func (p *Output) ProcessResults(results []scanner.ScanResult, stats *scanner.ScanStats) error {
 	if len(results) == 0 {
-		logging.Info("没有发现任何结果")
+		logging.Info("no results found")
 		return nil
 	}
 
@@ -96,15 +96,13 @@ func (p *Output) outputGroup(groupName string, results []scanner.ScanResult) err
 		if err := p.writeCSV(outputFile, results); err != nil {
 			return err
 		}
-	case "json":
+	default:
 		if err := p.writeJSON(outputFile, results); err != nil {
 			return err
 		}
-	default:
-		return fmt.Errorf("不支持的输出格式: %s", p.OutputFormat)
 	}
 
-	logging.Infof("分析结果 [group:%s|format:%s] 已保存至: %s",
+	logging.Infof("analysis results [group:%s|format:%s] saved to: %s",
 		groupName, p.OutputFormat, outputFile)
 
 	return nil
