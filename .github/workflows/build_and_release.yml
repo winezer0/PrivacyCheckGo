@@ -25,10 +25,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go 1.20
+      - name: Set up Go 1.23
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.23'
           cache-dependency-path: go.sum
 
       - name: Check Go version
@@ -43,9 +43,9 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go1.23-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-go1.23-
 
       - name: Download dependencies
         run: go mod download
@@ -102,7 +102,7 @@ jobs:
             - 版本号: ${{ github.event.inputs.version }}
             - 构建日期: ${{ steps.date.outputs.builddate }}
             - 构建平台: Windows & Linux
-            - Go版本: 1.20
+            - Go版本: 1.23
             
             ### 下载
             - Windows (AMD64): `privacycheck-windows-amd64.exe`
