@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"privacycheck/config"
+	"privacycheck"
 	"privacycheck/core"
 	"privacycheck/pkg/logging"
 	"reflect"
@@ -15,11 +15,11 @@ import (
 
 // Output 输出处理器
 type Output struct {
-	config *config.Config
+	config *main.CmdConfig
 }
 
 // NewOutput 创建输出处理器
-func NewOutput(config *config.Config) *Output {
+func NewOutput(config *main.CmdConfig) *Output {
 	return &Output{config: config}
 }
 

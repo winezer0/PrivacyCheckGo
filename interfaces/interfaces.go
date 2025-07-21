@@ -1,13 +1,14 @@
 package interfaces
 
 import (
-	"privacycheck/core"
+	"privacycheck"
 	"privacycheck/config"
+	"privacycheck/core"
 )
 
 // Scanner 扫描器接口
 type Scanner interface {
-	Scan(files []string, config *config.Config) ([]core.ScanResult, *core.ScanStats, error)
+	Scan(files []string, config *main.CmdConfig) ([]core.ScanResult, *core.ScanStats, error)
 	GetStats() *core.ScanStats
 }
 
@@ -28,7 +29,7 @@ type FileProcessor interface {
 
 // OutputProcessor 输出处理器接口
 type OutputProcessor interface {
-	ProcessResults(results []core.ScanResult, stats *core.ScanStats, config *config.Config) error
+	ProcessResults(results []core.ScanResult, stats *core.ScanStats, config *main.CmdConfig) error
 	FormatResults(results []core.ScanResult, format string) ([]byte, error)
 }
 

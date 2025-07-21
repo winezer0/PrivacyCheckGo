@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"privacycheck/config"
+	"privacycheck"
 	"privacycheck/core"
 	"privacycheck/pkg/logging"
 	"sync"
@@ -17,7 +17,7 @@ import (
 // Scanner 扫描器
 type Scanner struct {
 	engine     *RuleEngine
-	config     *config.Config
+	config     *main.CmdConfig
 	cache      *ScanCache
 	results    []core.ScanResult
 	resultsMux sync.Mutex
@@ -34,7 +34,7 @@ type ScanCache struct {
 }
 
 // NewScanner 创建新的扫描器
-func NewScanner(rules baserule.RuleMap, config *config.Config) (*Scanner, error) {
+func NewScanner(rules baserule.RuleMap, config *main.CmdConfig) (*Scanner, error) {
 	engine, err := NewRuleEngine(rules)
 	if err != nil {
 		return nil, fmt.Errorf("创建规则引擎失败: %w", err)
