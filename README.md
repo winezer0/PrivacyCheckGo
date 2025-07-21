@@ -204,8 +204,7 @@ rules:
 # 使用8个线程扫描
 ./privacycheck -t /path/to/project -w 8
 
-# 启用分块模式（节省内存）
-./privacycheck -t /path/to/project -k
+
 
 # 限制扫描文件大小为10MB
 ./privacycheck -t /path/to/project -l 10

@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/jessevdk/go-flags"
 	"os"
 	"privacycheck/baserule"
 	"privacycheck/output"
@@ -11,6 +10,8 @@ import (
 	"privacycheck/pkg/logging"
 	"privacycheck/scanner"
 	"runtime"
+
+	"github.com/jessevdk/go-flags"
 )
 
 // CmdConfig 表示程序配置
@@ -28,7 +29,6 @@ type CmdConfig struct {
 
 	// 读取配置
 	SaveCache bool `short:"s" long:"save-cache" description:"启用扫描结果缓存, 支持断点续扫, 推荐大项目使用"`
-	ChunkMode bool `short:"k" long:"chunk-mode" description:"启用分块读取模式, 降低内存占用, 但增加扫描时间"`
 
 	// 筛选规则
 	FilterNames   []string `short:"N" long:"filter-names" description:"按规则名称关键字过滤 (支持多个关键字)"`
@@ -47,7 +47,7 @@ type CmdConfig struct {
 	BlockMatches  []string `short:"b" long:"block-matches" description:"匹配结果黑名单过滤关键字列表"`
 
 	// 日志配置
-	LogFile   string `long:"log-file" description:"日志文件 (为空则不写入文件)  default:""`
+	LogFile   string `long:"log-file" description:"日志文件 (为空则不写入文件)" default:""`
 	LogLevel  string `long:"log-level" description:"日志级别 (debug/info/warn/error)" choice:"debug" choice:"info" choice:"warn" choice:"error" default:"info"`
 	LogFormat string `long:"log-format" description:"控制台日志格式 (T=时间,L=级别,C=调用者,M=消息,F=函数,off=关闭)" default:"TLM"`
 }
@@ -201,8 +201,21 @@ func main() {
 	// 打印规则信息
 	filteredRules.PrintRulesInfo()
 
-	// 获取待扫描文件
-	files, err := fileutils.GetFilesWithFilter(cmdConfig.ProjectPath, cmdConfig.ExcludeExt, cmdConfig.ExcludePath, cmdConfig.LimitSize)
+	// 创建扫描器
+	scannerConfig := newScannerConfig(cmdConfig)
+	scannerInstance, err := scanner.NewScanner(filteredRules, scannerConfig)
+	if err != nil {
+		logging.Errorf("创建扫描器失败: %v", err)
+		os.Exit(1)
+	}
+
+	// 获取待扫描文件 - 使用 fileutils 直接进行过滤
+	files, err := fileutils.GetFilesWithFilter(
+		cmdConfig.ProjectPath,
+		cmdConfig.ExcludeExt,
+		cmdConfig.ExcludePath,
+		cmdConfig.LimitSize,
+	)
 	if err != nil {
 		logging.Errorf("failed to get files with filter: %v", err)
 		os.Exit(1)
@@ -214,13 +227,6 @@ func main() {
 	}
 
 	logging.Infof("found %d files to be scanned", len(files))
-
-	// 创建扫描器
-	scannerInstance, err := scanner.NewScanner(filteredRules, cmdConfig)
-	if err != nil {
-		logging.Errorf("创建扫描器失败: %v", err)
-		os.Exit(1)
-	}
 
 	// 执行扫描
 	results, err := scannerInstance.Scan(files)
@@ -235,7 +241,7 @@ func main() {
 
 	// 处理输出
 	if len(results) > 0 {
-		outputProcessor := output.NewOutput(cmdConfig)
+		outputProcessor := newOutputConfig(cmdConfig)
 		if err := outputProcessor.ProcessResults(results, stats); err != nil {
 			logging.Errorf("输出结果失败: %v", err)
 			os.Exit(1)
@@ -245,4 +251,26 @@ func main() {
 	}
 
 	logging.Info("程序执行完成")
+}
+
+// newScannerConfig 从命令行配置创建扫描器配置
+func newScannerConfig(cmdConfig *CmdConfig) *scanner.Config {
+	return &scanner.Config{
+		Workers:     cmdConfig.Workers,
+		SaveCache:   cmdConfig.SaveCache,
+		ProjectName: cmdConfig.ProjectName,
+	}
+}
+
+// newOutputConfig 从命令行配置创建输出配置
+func newOutputConfig(cmdConfig *CmdConfig) *output.Output {
+	return &output.Output{
+		OutputFile:    cmdConfig.OutputFile,
+		OutputGroup:   cmdConfig.OutputGroup,
+		OutputKeys:    cmdConfig.OutputKeys,
+		OutputFormat:  cmdConfig.OutputFormat,
+		FormatResults: cmdConfig.FormatResults,
+		BlockMatches:  cmdConfig.BlockMatches,
+		ProjectName:   cmdConfig.ProjectName,
+	}
 }

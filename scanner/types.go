@@ -2,6 +2,13 @@ package scanner
 
 import "time"
 
+// Config 扫描器配置
+type Config struct {
+	Workers     int
+	SaveCache   bool
+	ProjectName string
+}
+
 // ScanResult 表示扫描结果
 type ScanResult struct {
 	File       string `json:"file"`        // 文件路径
@@ -32,13 +39,6 @@ type ProgressInfo struct {
 	Elapsed   time.Duration
 	Remaining time.Duration
 	Message   string
-}
-
-// ScanJob 表示扫描任务
-type ScanJob struct {
-	FilePath string
-	Results  []ScanResult
-	Error    error
 }
 
 // ScanCached 表示扫描缓存

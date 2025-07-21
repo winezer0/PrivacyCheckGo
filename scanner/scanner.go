@@ -1,9 +1,7 @@
 package scanner
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"privacycheck/baserule"
 	"privacycheck/pkg/fileutils"
 	"privacycheck/pkg/logging"
@@ -14,24 +12,16 @@ import (
 // Scanner 扫描器
 type Scanner struct {
 	engine     *RuleEngine
-	config     *main.CmdConfig
-	cache      *ScanCache
+	config     *Config // 改为使用自己的配置结构体
+	cache      *CacheManager
 	results    []ScanResult
 	resultsMux sync.Mutex
 	stats      ScanStats
 	statsMux   sync.RWMutex
 }
 
-// ScanCache 扫描缓存
-type ScanCache struct {
-	data     ScanCached
-	filePath string
-	mux      sync.RWMutex
-	lastSave time.Time
-}
-
 // NewScanner 创建新的扫描器
-func NewScanner(rules baserule.RuleMap, config *main.CmdConfig) (*Scanner, error) {
+func NewScanner(rules baserule.RuleMap, config *Config) (*Scanner, error) {
 	engine, err := NewRuleEngine(rules)
 	if err != nil {
 		return nil, fmt.Errorf("创建规则引擎失败: %w", err)
@@ -48,107 +38,25 @@ func NewScanner(rules baserule.RuleMap, config *main.CmdConfig) (*Scanner, error
 	// 初始化缓存
 	if config.SaveCache {
 		cacheFile := config.ProjectName + ".cache"
-		cache, err := NewScanCache(cacheFile)
-		if err != nil {
-			logging.Warnf("初始化缓存失败: %v", err)
-		} else {
-			scanner.cache = cache
-		}
+		cache := NewCacheManager(cacheFile)
+		scanner.cache = cache
 	}
 
 	return scanner, nil
 }
 
-// NewScanCache 创建新的扫描缓存
-func NewScanCache(filePath string) (*ScanCache, error) {
-	cache := &ScanCache{
-		filePath: filePath,
-		data: ScanCached{
-			Result:     make(map[string][]ScanResult),
-			LastUpdate: time.Now().Format(time.RFC3339),
-		},
-		lastSave: time.Now(),
-	}
-
-	// 尝试加载现有缓存
-	if err := cache.load(); err != nil {
-		logging.Warnf("加载缓存失败: %v", err)
-	}
-
-	return cache, nil
-}
-
-// load 加载缓存文件
-func (c *ScanCache) load() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	if _, err := os.Stat(c.filePath); os.IsNotExist(err) {
-		return nil // 缓存文件不存在，不是错误
-	}
-
-	data, err := os.ReadFile(c.filePath)
-	if err != nil {
-		return fmt.Errorf("读取缓存文件失败: %w", err)
-	}
-
-	if err := json.Unmarshal(data, &c.data); err != nil {
-		return fmt.Errorf("解析缓存文件失败: %w", err)
-	}
-
-	logging.Infof("加载缓存完成: 已缓存结果数: %d, 缓存更新时间: %s",
-		len(c.data.Result), c.data.LastUpdate)
-
-	return nil
-}
-
-// save 保存缓存文件
-func (c *ScanCache) save() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	c.data.LastUpdate = time.Now().Format(time.RFC3339)
-
-	data, err := json.MarshalIndent(c.data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("序列化缓存数据失败: %w", err)
-	}
-
-	if err := os.WriteFile(c.filePath, data, 0644); err != nil {
-		return fmt.Errorf("写入缓存文件失败: %w", err)
-	}
-
-	c.lastSave = time.Now()
-	return nil
-}
-
-// get 获取缓存结果
-func (c *ScanCache) get(filePath string) ([]ScanResult, bool) {
-	c.mux.RLock()
-	defer c.mux.RUnlock()
-
-	results, exists := c.data.Result[filePath]
-	return results, exists
-}
-
-// set 设置缓存结果
-func (c *ScanCache) set(filePath string, results []ScanResult) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	c.data.Result[filePath] = results
-}
-
-// shouldSave 检查是否应该保存缓存
-func (c *ScanCache) shouldSave(forceStore bool) bool {
-	if forceStore {
-		return true
-	}
-	return time.Since(c.lastSave) >= 10*time.Second // 每10秒保存一次
-}
-
 // Scan 执行扫描
-func (s *Scanner) Scan(files []fileutils.FileInfo) ([]ScanResult, error) {
+func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
+	// 转换文件路径为FileInfo
+	var files []fileutils.FileInfo
+	for _, path := range filePaths {
+		fileInfo, err := fileutils.PathToFileInfo(path)
+		if err != nil {
+			logging.Warnf("获取文件信息失败 %s: %v", path, err)
+			continue
+		}
+		files = append(files, fileInfo)
+	}
 	s.stats.TotalFiles = len(files)
 
 	logging.Infof("开始扫描，共发现 %d 个有效文件", len(files))
@@ -194,7 +102,7 @@ func (s *Scanner) Scan(files []fileutils.FileInfo) ([]ScanResult, error) {
 
 	// 最终保存缓存
 	if s.cache != nil {
-		if err := s.cache.save(); err != nil {
+		if err := s.cache.ForceSave(); err != nil {
 			logging.Warnf("保存最终缓存失败: %v", err)
 		}
 	}
@@ -222,7 +130,7 @@ func (s *Scanner) worker(jobs <-chan fileutils.FileInfo, results chan<- ScanJob,
 
 		// 检查缓存
 		if s.cache != nil {
-			if cachedResults, exists := s.cache.get(file.Path); exists {
+			if cachedResults, exists := s.cache.GetCachedResult(file.Path); exists {
 				job.Results = cachedResults
 				results <- job
 				continue
@@ -230,11 +138,7 @@ func (s *Scanner) worker(jobs <-chan fileutils.FileInfo, results chan<- ScanJob,
 		}
 
 		// 执行扫描
-		if s.config.ChunkMode {
-			job.Results, job.Error = s.scanFileInChunks(file)
-		} else {
-			job.Results, job.Error = s.scanFile(file)
-		}
+		job.Results, job.Error = s.scanFile(file)
 
 		results <- job
 	}
@@ -242,33 +146,13 @@ func (s *Scanner) worker(jobs <-chan fileutils.FileInfo, results chan<- ScanJob,
 
 // scanFile 扫描单个文件
 func (s *Scanner) scanFile(file fileutils.FileInfo) ([]ScanResult, error) {
-	content, err := fileutils.ReadFileSafe(file.Path, file.Encoding)
+	content, err := fileutils.ReadFileWithEncoding(file.Path, file.Encoding)
 	if err != nil {
 		return nil, fmt.Errorf("读取文件失败: %w", err)
 	}
 
 	results := s.engine.ApplyRules(content, file.Path)
 	return results, nil
-}
-
-// scanFileInChunks 分块扫描文件
-func (s *Scanner) scanFileInChunks(file fileutils.FileInfo) ([]ScanResult, error) {
-	var allResults []ScanResult
-	chunkSize := 1024 * 1024 // 1MB
-	chunkOffset := 0
-
-	err := fileutils.ReadFileInChunks(file.Path, file.Encoding, chunkSize, func(chunk string) error {
-		results := s.engine.ApplyRuleToChunk(chunk, file.Path, chunkOffset)
-		allResults = append(allResults, results...)
-		chunkOffset += len(chunk)
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("分块读取文件失败: %w", err)
-	}
-
-	return allResults, nil
 }
 
 // processJobResult 处理任务结果
@@ -290,13 +174,11 @@ func (s *Scanner) processJobResult(job ScanJob) {
 
 	// 更新缓存
 	if s.cache != nil {
-		s.cache.set(job.FilePath, job.Results)
+		s.cache.SetCachedResult(job.FilePath, job.Results)
 
 		// 定期保存缓存
-		if s.cache.shouldSave(false) {
-			if err := s.cache.save(); err != nil {
-				logging.Warnf("保存缓存失败: %v", err)
-			}
+		if err := s.cache.AutoSave(); err != nil {
+			logging.Warnf("保存缓存失败: %v", err)
 		}
 	}
 }
@@ -335,7 +217,7 @@ func (s *Scanner) printProgress() {
 		remaining = avgTime * time.Duration(stats.TotalFiles-stats.ProcessedFiles)
 	}
 
-	fmt.Printf("\r当前进度: %d/%d (%.2f%%) 已用时长: %v 预计剩余: %v 发现结果: %d",
+	logging.Infof("当前进度: %d/%d (%.2f%%) 已用时长: %v 预计剩余: %v 发现结果: %d",
 		stats.ProcessedFiles, stats.TotalFiles, percent,
 		elapsed.Truncate(time.Second), remaining.Truncate(time.Second),
 		stats.TotalResults)

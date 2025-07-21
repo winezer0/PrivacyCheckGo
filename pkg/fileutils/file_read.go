@@ -2,10 +2,11 @@ package fileutils
 
 import (
 	"bufio"
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/transform"
 	"io"
 	"os"
+
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/transform"
 )
 
 // ReadFileWithEncoding 读取指定编码的文件内容并转换为UTF-8字符串
@@ -71,16 +72,12 @@ func readFileWithEncoding(filePath string, enc encoding.Encoding) (string, error
 	return string(content), nil
 }
 
-// 直接读取UTF-8文件为字符串
-func readFile(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", err
-	}
-	return string(content), nil
-}
-
-// ReadLargeFileWithEncoding 读取大文件，适合处理几MB以上的文件 会逐行处理以减少内存占用
+// ReadLargeFileWithEncoding 逐行读取大文件，适合处理几MB以上的文件
+// 特点：
+// 1. 按行分割处理，适合结构化文本文件（如日志、CSV等）
+// 2. 内存占用极低，每次只处理一行
+// 3. 无法处理跨行的匹配模式
+// 4. 适用场景：日志分析、行级数据处理
 func ReadLargeFileWithEncoding(filePath, encode string, handler func(line string) error) error {
 	// 如果未指定编码，则自动检测
 	if encode == "" {
@@ -118,4 +115,9 @@ func ReadLargeFileWithEncoding(filePath, encode string, handler func(line string
 	}
 
 	return scanner.Err()
+}
+
+// ReadFile 读取文件内容
+func ReadFile(filePath string) ([]byte, error) {
+	return os.ReadFile(filePath)
 }

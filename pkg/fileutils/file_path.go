@@ -65,8 +65,8 @@ func GetAllFilePaths(path string) ([]string, error) {
 	return filePaths, nil
 }
 
-// IsDir 判断路径是否为目录
-func IsDir(path string) (bool, error) {
+// PathIsDir 判断路径是否为目录
+func PathIsDir(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return false, err
@@ -80,7 +80,7 @@ func GetPathLastDir(path string) string {
 	path = filepath.Clean(path)
 
 	// 检查路径是否是目录
-	isDir, err := IsDir(path)
+	isDir, err := PathIsDir(path)
 	if err != nil {
 		// 如果出错，直接返回路径的基础名称
 		return filepath.Base(path)
@@ -102,4 +102,9 @@ func GetAbsPath(path string) string {
 		return path
 	}
 	return absPath
+}
+
+// EnsureDir 确保目录存在，如果不存在则创建
+func EnsureDir(dirPath string) error {
+	return os.MkdirAll(dirPath, 0755)
 }

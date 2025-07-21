@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"privacycheck/pkg/logging"
+	"time"
 )
 
 // FileInfo 表示文件信息
@@ -11,6 +12,7 @@ type FileInfo struct {
 	Path     string
 	Size     int64
 	Encoding string
+	ModeTime time.Time
 }
 
 // PathToFileInfo 将文件路径转换为FileInfo结构体
@@ -42,5 +44,6 @@ func PathToFileInfo(path string) (FileInfo, error) {
 		Path:     path,
 		Size:     fileStat.Size(),
 		Encoding: encoding,
+		ModeTime: fileStat.ModTime(),
 	}, nil
 }
