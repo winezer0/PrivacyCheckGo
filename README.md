@@ -1,151 +1,111 @@
 # PrivacyCheckGo
 
-High-performance sensitive information detection tool for static code analysis, fully compatible with HAE rule format.
+高性能静态代码敏感信息检测工具，完全兼容HAE规则格式。
 
-## Project Overview
+## 项目简介
 
-PrivacyCheckGo is a high-performance static code audit tool designed to extract sensitive information and privacy data from source code, web source code, mini-program source code, and other text files. This project is fully compatible with HAE (HaE - Highlighter and Extractor) rule format and has been comprehensively optimized for performance and functionality.
+PrivacyCheckGo 是一个高性能的静态代码审计工具，专门用于从源代码、网页源码、小程序源码等文本文件中提取敏感信息和隐私数据。本项目完全兼容HAE（HaE - Highlighter and Extractor）规则格式，并在性能和功能上进行了全面优化。
 
-## Key Features
+## 主要特性
 
-### 🚀 **High Performance**
-- **Multi-threaded concurrent scanning**: Fully utilizes multi-core CPUs for significantly improved scanning speed
-- **Memory optimization**: Supports large file chunked processing to reduce memory usage
-- **Smart caching**: Supports resume scanning to avoid re-analyzing large projects
-- **Cross-platform support**: Native support for Windows and Linux platforms
-- **Direct file path processing**: Optimized scanner that processes files directly without pre-conversion overhead
+### 🚀 **高性能**
+- **多线程并发扫描**：充分利用多核CPU，显著提升扫描速度
+- **内存优化**：支持大文件分块处理，降低内存占用
+- **智能缓存**：支持断点续扫，避免重复分析大型项目
+- **跨平台支持**：原生支持Windows和Linux平台
 
-### 🔍 **Powerful Detection Capabilities**
-- **HAE rule compatibility**: Directly reuses existing HAE rules without conversion
-- **Multiple sensitive information detection**:
-  - Personal information: Email, ID card numbers, mobile numbers, etc.
-  - System information: Internal IPs, MAC addresses, file paths, etc.
-  - Sensitive information: API keys, password fields, cloud service keys, etc.
-- **Flexible rule filtering**: Supports filtering by rule group, rule name, and sensitivity level
-- **Smart encoding detection**: Automatically detects file encoding (UTF-8, GBK, GB2312, etc.)
-- **Case-insensitive matching**: Default case-insensitive regex matching for better detection
+### 🔍 **强大的检测能力**
+- **兼容HAE规则**：直接复用现有HAE规则，无需转换
+- **多种敏感信息检测**：
+  - 个人信息：邮箱、身份证号、手机号等
+  - 系统信息：内网IP、MAC地址、文件路径等
+  - 敏感信息：API密钥、密码字段、云服务密钥等
+- **灵活的规则过滤**：支持按规则组、规则名称、敏感级别过滤
+- **智能编码检测**：自动识别文件编码（UTF-8、GBK、GB2312等）
+- **忽略大小写匹配**：默认忽略大小写的正则匹配，提升检测效果
 
-### 📊 **Rich Output Options**
-- **Multiple output formats**: Supports JSON and CSV formats
-- **Flexible result grouping**: Can output by rule groups to separate files
-- **Custom output fields**: Output only the fields you need
-- **Result filtering**: Supports blacklist keyword filtering
-- **Format options**: Automatically cleans special characters in results
+### 📊 **丰富的输出选项**
+- **多种输出格式**：支持JSON和CSV格式
+- **灵活的结果分组**：可按规则组分别输出到不同文件
+- **自定义输出字段**：仅输出需要的字段
+- **结果过滤**：支持黑名单关键字过滤
+- **格式化选项**：自动清理结果中的特殊字符
 
-### ⚙️ **Easy to Use**
-- **Smart configuration management**: Automatically generates default configuration when config file doesn't exist
-- **Detailed logging system**: Supports multi-level logging and file output
-- **Real-time progress display**: Shows real-time progress and estimated remaining time during scanning
-- **Command-line friendly**: Rich command-line parameters with intelligent abbreviations
+### ⚙️ **易于使用**
+- **智能配置管理**：配置文件不存在时自动生成默认配置
+- **实时进度显示**：扫描过程中实时显示进度和预计剩余时间
+- **详细日志记录**：支持多级别日志和文件输出
 
-## Quick Start
+## 快速开始
 
-### Installation
+### 编译要求
+- Go 1.20+（已测试兼容Go 1.20）
+- 无CGO依赖，支持交叉编译
 
-#### Option 1: Download Pre-compiled Binary
-Download the binary for your platform from the [Releases page](../../releases):
+### 安装
+
+#### 方式一：下载预编译二进制文件
+从[Releases页面](../../releases)下载对应平台的二进制文件：
 - Windows x64: `privacycheck-windows-x64.exe`
 - Linux x64: `privacycheck-linux-x64`
 
-#### Option 2: Build from Source
+#### 方式二：从源码编译
 ```bash
-# Clone the project
-git clone https://github.com/your-repo/PrivacyCheckGo.git
+# 克隆项目
+git clone https://github.com/winezer0/PrivacyCheckGo.git
 cd PrivacyCheckGo
 
-# For Windows users
+# Windows用户
 build.bat
 
-# For Linux users
+# Linux用户
 ./build.sh
 ```
 
-### Basic Usage
+## 命令行参数
 
-```bash
-# Scan a single file
-./privacycheck -p /path/to/file.js
+### 基础参数
+- `-p, --project-path`: 待扫描的目标文件或目录（必需）
+- `-r, --rules`: 规则文件路径（默认：config.yaml）
+- `-n, --project-name`: 项目名称，影响输出文件名和缓存文件名
 
-# Scan entire directory
-./privacycheck -p /path/to/project
+### 性能参数
+- `-w, --workers`: 工作线程数量（默认：8）
+- `--ls`: 文件大小限制，单位MB（默认：5，0表示无限制）
+- `--lc`: 分块读取阈值，单位MB（默认：5，0表示禁用）
+- `-s, --save-cache`: 启用缓存功能
 
-# Use custom rules file
-./privacycheck -p /path/to/project -r custom_rules.yaml
+### 过滤参数
+- `--ee`: 排除的文件扩展名列表
+- `--ep`: 排除的路径关键字列表
+- `-S, --sensitive-only`: 仅检测敏感信息
+- `-N, --filter-names`: 按规则名称过滤
+- `-G, --filter-groups`: 按规则组过滤
 
-# Detect only sensitive information
-./privacycheck -p /path/to/project -S
+### 输出参数
+- `-o, --output-file`: 输出文件路径
+- `-f, --output-format`: 输出格式（json/csv，默认：json）
+- `-g, --output-group`: 按规则组分别输出
+- `-O, --output-keys`: 指定输出字段
+- `-F, --format-results`: 格式化输出结果（默认：启用）
+- `-b, --block-matches`: 黑名单关键字过滤
 
-# Output in CSV format
-./privacycheck -p /path/to/project -f csv
+### 日志参数
+- `--ll`: 日志级别（debug/info/warn/error，默认：info）
+- `--lf`: 日志文件路径
+- `--cf`: 控制台日志格式（默认：TLM）
 
-# Enable caching (recommended for large projects)
-./privacycheck -p /path/to/project -s
-```
+### 工具参数
+- `-h, --help`: 显示帮助信息
 
-## Command Line Parameters
+## 配置文件格式
 
-### Basic Parameters
-- `-p, --project-path`: Target file or directory to scan (required)
-- `-r, --rules`: Rules file path (default: config.yaml)
-- `-n, --project-name`: Project name, affects output filename and cache filename
+PrivacyCheckGo 完全兼容HAE规则格式。
 
-### Performance Parameters
-- `-w, --workers`: Number of worker threads (default: 8)
-- `--ls`: File size limit in MB (default: 5, 0 means unlimited)
-- `--lc`: Chunk reading threshold in MB (default: 5, 0 means disabled)
-- `-s, --save-cache`: Enable caching functionality
-
-### Filtering Parameters
-- `--ee`: List of file extensions to exclude
-- `--ep`: List of path keywords to exclude
-- `-S, --sensitive-only`: Detect only sensitive information
-- `-N, --filter-names`: Filter by rule names
-- `-G, --filter-groups`: Filter by rule groups
-
-### Output Parameters
-- `-o, --output-file`: Output file path
-- `-f, --output-format`: Output format (json/csv, default: json)
-- `-g, --output-group`: Output by rule groups to separate files
-- `-O, --output-keys`: Specify output fields
-- `-F, --format-results`: Format output results (default: enabled)
-- `-b, --block-matches`: Blacklist keyword filtering
-
-### Logging Parameters
-- `--ll`: Log level (debug/info/warn/error, default: info)
-- `--lf`: Log file path
-- `--cf`: Console log format (default: TLM)
-
-### Utility Parameters
-- `-h, --help`: Show help information
-
-## Configuration File Format
-
-PrivacyCheckGo is fully compatible with HAE rule format. Configuration file example:
+配置文件示例：
 
 ```yaml
 rules:
-  - group: People Information
-    rule:
-      - name: Email
-        loaded: true
-        f_regex: (([a-z0-9]+[_|\.])*[a-z0-9]+@([a-z0-9]+[-|_|\.])*[a-z0-9]+\.[a-z]{2,5})
-        sensitive: false
-        context_left: 0
-        context_right: 0
-      - name: Chinese IDCard
-        loaded: true
-        f_regex: '[^0-9]((\d{8}(0\d|10|11|12)([0-2]\d|30|31)\d{3}$)|(\d{6}(18|19|20)\d{2}(0[1-9]|10|11|12)([0-2]\d|30|31)\d{3}(\d|X|x)))[^0-9]'
-        sensitive: true
-        context_left: 50
-        context_right: 50
-  - group: System Information
-    rule:
-      - name: Internal IP Address
-        loaded: true
-        f_regex: '[^0-9]((127\.0\.0\.1)|(10\.\d{1,3}\.\d{1,3}\.\d{1,3})|(172\.((1[6-9])|(2\d)|(3[01]))\.\d{1,3}\.\d{1,3})|(192\.168\.\d{1,3}\.\d{1,3}))'
-        sensitive: true
-        context_left: 50
-        context_right: 50
   - group: Sensitive Information
     rule:
       - name: Cloud Key
@@ -156,222 +116,88 @@ rules:
         context_right: 50
 ```
 
-### Rule Parameters
-- `name`: Rule name (required)
-- `f_regex`: Regular expression pattern (required)
-- `sensitive`: Whether it's sensitive information (default: false)
-- `loaded`: Whether to enable the rule (default: true)
-- `context_left`: Number of context characters to expand left
-- `context_right`: Number of context characters to expand right
+### 规则参数说明
+- `name`: 规则名称（必需）
+- `f_regex`: 正则表达式模式（必需）
+- `sensitive`: 是否为敏感信息（默认：false）
+- `loaded`: 是否启用规则（默认：true）
+- `context_left`: 向左扩展的上下文字符数
+- `context_right`: 向右扩展的上下文字符数
 
-### Important Notes
-- **Case-insensitive matching**: All regex patterns are matched case-insensitively by default
-- **Context extraction**: When context_left/right > 0, the tool extracts surrounding context for better analysis
-- **Rule grouping**: Rules are organized by groups for better management and output organization
+### 重要说明
+- **忽略大小写匹配**：所有正则表达式模式默认忽略大小写匹配
+- **上下文提取**：当 context_left/right > 0 时，工具会提取周围上下文以便更好地分析
+- **规则分组**：规则按组织分组，便于管理和输出组织
 
-## Usage Examples
+## 使用示例
 
-### Basic Scanning
+### 基础扫描
 ```bash
-# Scan current directory
+# 扫描当前目录
 ./privacycheck -p .
 
-# Scan specific project with caching enabled
+# 扫描指定项目，启用缓存
 ./privacycheck -p /path/to/large-project -s -n my-project
 ```
 
-### Advanced Filtering
+
+### 智能内存管理
+PrivacyCheckGo 支持智能分块读取功能，可以有效控制内存使用：
+
+#### 工作原理
+- **自动切换**：根据文件大小自动选择读取策略
+- **分块处理**：大文件按1MB块进行处理，保持低内存占用
+- **行完整性**：确保不会在行中间截断，保持匹配准确性
+- **位置精确**：正确计算每个匹配结果的文件位置和行号
+
+#### 配置选项
 ```bash
-# Detect only sensitive information
-./privacycheck -p /path/to/project -S
-
-# Detect only rules containing "password"
-./privacycheck -p /path/to/project -N password
-
-# Detect only rules from "Sensitive Information" group
-./privacycheck -p /path/to/project -G "Sensitive Information"
-
-# Exclude specific file types
-./privacycheck -p /path/to/project --ee .log,.tmp,.bak
-
-# Exclude specific paths
-./privacycheck -p /path/to/project --ep /tmp,/cache,node_modules
-```
-
-### Output Customization
-```bash
-# Output in CSV format
-./privacycheck -p /path/to/project -f csv
-
-# Output by rule groups separately
-./privacycheck -p /path/to/project -g
-
-# Output only specified fields
-./privacycheck -p /path/to/project -O file,rule_name,match
-
-# Filter results containing specific keywords
-./privacycheck -p /path/to/project -b "test","example"
-```
-
-### Performance Optimization
-```bash
-# Use 8 threads for scanning
-./privacycheck -p /path/to/project -w 8
-
-# Limit scan file size to 10MB
-./privacycheck -p /path/to/project --ls 10
-
-# Set chunk reading threshold to 20MB (large file optimization)
-./privacycheck -p /path/to/project --lc 20
-
-# Disable chunk reading (high performance mode)
-./privacycheck -p /path/to/project --lc 0
-
-# Memory optimization mode (1MB chunk threshold)
-./privacycheck -p /path/to/project --lc 1
-```
-
-## Chunk Reading Feature
-
-### Smart Memory Management
-PrivacyCheckGo supports intelligent chunk reading functionality to effectively control memory usage:
-
-#### How It Works
-- **Automatic switching**: Automatically selects reading strategy based on file size
-- **Chunk processing**: Large files are processed in 1MB chunks to maintain low memory usage
-- **Line integrity**: Ensures no truncation in the middle of lines, maintaining matching accuracy
-- **Position accuracy**: Correctly calculates file position and line number for each match result
-
-#### Configuration Options
-```bash
-# Default configuration (5MB threshold)
+# 默认配置（5MB阈值）
 ./privacycheck -p /path/to/project
 
-# Custom threshold (10MB)
+# 自定义阈值（10MB）
 ./privacycheck -p /path/to/project --lc 10
 
-# Memory optimization (1MB threshold)
-./privacycheck -p /path/to/project --lc 1
-
-# Disable chunk reading (full file reading)
+# 禁用分块读取（全量读取）
 ./privacycheck -p /path/to/project --lc 0
 ```
 
-#### Usage Recommendations
-- **Memory-constrained environments**: Set smaller threshold (1-2MB)
-- **High-performance environments**: Set larger threshold (10-20MB) or disable chunk reading
-- **Default configuration**: 5MB threshold suits most scenarios
-- **Large file projects**: Enable chunk reading to significantly reduce memory usage
+#### 使用建议
+- **内存受限环境**：设置较小阈值（1-2MB）
+- **高性能环境**：设置较大阈值（10-20MB）或禁用分块读取
+- **默认配置**：5MB阈值适合大多数场景
+- **大文件项目**：启用分块读取可显著降低内存占用
 
-## Technical Architecture
+## 技术架构
 
-### Project Structure
-```
-PrivacyCheckGo/
-├── internal/
-│   ├── baserule/  # Rule system
-│   ├── scanner/   # Scanning engine
-│   └── output/    # Output processing
-├── pkg/           # Utility packages
-│   ├── fileutils/ # File processing utilities
-│   └── logging/   # Logging system
-├── main.go        # Main program entry
-├── config.yaml    # Default rule configuration
-├── build.bat      # Windows build script
-├── build.sh       # Linux build script
-└── README.md      # Project documentation
-```
+### 核心组件
+1. **规则系统（baserule）**：HAE兼容的规则加载、验证和过滤
+2. **扫描引擎（scanner）**：多线程扫描调度、规则匹配和结果收集
+   - **优化的文件处理**：直接处理文件路径，无预转换开销
+   - **延迟编码检测**：仅在实际读取文件时才进行编码检测
+   - **智能缓存**：智能缓存管理，支持断点续扫
+3. **文件处理（fileutils）**：文件发现、编码检测、分块读取
+4. **输出处理（output）**：结果格式化、过滤和多格式输出
+5. **日志系统（logging）**：结构化日志记录和多级别输出
 
-### Core Components
-1. **Rule System (baserule)**: HAE-compatible rule loading, validation, and filtering
-2. **Scanning Engine (scanner)**: Multi-threaded scan scheduling, rule matching, and result collection
-   - **Optimized file processing**: Direct filepath processing without pre-conversion overhead
-   - **Lazy encoding detection**: Encoding detection only when needed during actual file reading
-   - **Smart caching**: Intelligent cache management with resume scanning support
-3. **File Processing (fileutils)**: File discovery, encoding detection, and chunk reading
-4. **Output Processing (output)**: Result formatting, filtering, and multi-format output
-5. **Logging System (logging)**: Structured logging with multi-level output
+## 性能对比
 
-### Performance Optimizations
-- **Direct filepath processing**: Scanner processes files directly without FileInfo pre-conversion
-- **Lazy evaluation**: File size and encoding detection only when actually needed
-- **Memory-efficient chunking**: Large files processed in 1MB chunks with accurate line tracking
-- **Case-insensitive regex**: Default case-insensitive matching for better detection coverage
+与Python版本相比，Go版本在以下方面有显著提升：
 
-## Performance Comparison
+| 特性 | Python版本 | Go版本 | 提升 |
+|------|------------|--------|------|
+| 启动速度 | ~2秒 | ~0.1秒 | 20x |
+| 内存占用 | 高 | 低 | 50%+ |
+| 扫描速度 | 基准 | 3-5x | 3-5x |
+| 并发性能 | GIL限制 | 真并发 | 显著 |
+| 部署便利性 | 需要Python环境 | 单文件部署 | 极大提升 |
+| 文件处理 | 预转换开销 | 直接处理 | 更快启动 |
+| 正则匹配 | 默认区分大小写 | 默认忽略大小写 | 更好检测 |
 
-Compared to the Python version, the Go version has significant improvements in the following areas:
+## 贡献指南
 
-| Feature | Python Version | Go Version | Improvement |
-|---------|----------------|------------|-------------|
-| Startup Speed | ~2 seconds | ~0.1 seconds | 20x |
-| Memory Usage | High | Low | 50%+ |
-| Scanning Speed | Baseline | 3-5x | 3-5x |
-| Concurrency | GIL Limited | True Concurrency | Significant |
-| Deployment | Requires Python Environment | Single Binary | Massive Improvement |
-| File Processing | Pre-conversion Overhead | Direct Processing | Faster Startup |
-| Regex Matching | Case-sensitive by default | Case-insensitive by default | Better Detection |
+欢迎提交Issue和Pull Request！
 
-## Development Guide
+## 免责声明
 
-### Dependencies
-- `github.com/jessevdk/go-flags`: Command-line argument parsing
-- `go.uber.org/zap`: High-performance logging library
-- `golang.org/x/text`: Text encoding processing
-- `gopkg.in/yaml.v3`: YAML configuration parsing
-
-### Build Requirements
-- Go 1.20+
-- No CGO dependencies, supports cross-compilation
-
-### Build Instructions
-The project provides automated build scripts:
-- Windows: Run `build.bat`
-- Linux: Run `./build.sh`
-
-The build scripts automatically:
-1. Check Go environment
-2. Download dependencies
-3. Cross-compile for Windows and Linux
-4. Generate optimized binaries
-
-### Recent Optimizations
-- **Direct filepath processing**: Removed FileInfo pre-conversion overhead
-- **Lazy encoding detection**: Encoding detection only when files are actually read
-- **Case-insensitive regex**: Default case-insensitive matching for better detection
-- **Memory optimization**: Reduced memory footprint through direct file processing
-
-## Contributing
-
-Welcome to submit Issues and Pull Requests!
-
-### Development Environment Setup
-```bash
-git clone https://github.com/your-repo/PrivacyCheckGo.git
-cd PrivacyCheckGo
-go mod tidy
-```
-
-### Code Standards
-- Use `gofmt` to format code
-- Follow Go language best practices
-- Add necessary comments and documentation
-- Write unit tests
-
-## Disclaimer
-
-This tool is intended for legitimate security testing and code auditing purposes only. Users should comply with relevant laws and regulations and must not use this tool for illegal purposes. The developers assume no responsibility for any consequences arising from misuse of this tool.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Contact
-
-If you have questions or suggestions, please contact us through:
-- Submit Issues: [GitHub Issues](../../issues)
-- Email: your-email@example.com
-
----
-
-**PrivacyCheckGo - Making Code Security Detection Faster and Stronger!**
+本工具仅用于合法的安全测试和代码审计目的。使用者应当遵守相关法律法规，不得将本工具用于非法用途。开发者不承担因误用本工具而产生的任何责任。
