@@ -6,6 +6,19 @@
 
 PrivacyCheckGo 是一个高性能的静态代码审计工具，专门用于从源代码、网页源码、小程序源码等文本文件中提取敏感信息和隐私数据。本项目完全兼容HAE（HaE - Highlighter and Extractor）规则格式，并在性能和功能上进行了全面优化。
 
+## 免责声明
+
+继续阅读文章或使用工具视为您已同意《 NOVASEC免责声明》: [NOVASEC免责声明](https://mp.weixin.qq.com/s/iRWRVxkYu7Fx5unxA34I7g)
+
+
+## 快速联系
+
+如需获取更多信息、技术支持或定制服务，请通过以下方式联系我们：
+
+**NOVASEC微信公众号** 或通过社交信息联系开发者 **【酒零】** 备注您的需求
+
+![NOVASEC0](https://raw.githubusercontent.com/winezer0/mypics/refs/heads/main/NOVASEC0.jpg)
+
 ## 主要特性
 
 ### 🚀 **高性能**
