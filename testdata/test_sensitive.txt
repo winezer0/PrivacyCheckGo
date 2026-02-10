@@ -1,0 +1,50 @@
+# Test file with sensitive information
+
+# Cloud Key
+access_key_id=AKIAIOSFODNN7EXAMPLE
+secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+LTAI5t7Y3Qw5b4u8r9t0y1u2i3o4p5a6s7d8f
+
+# Password
+password="MySecretPassword123"
+user.password = "test123456"
+pwd: "securePassword"
+
+# API Key
+api_key="sk_test_4eC39HqLyjWDarjtT1zdp7dc"
+token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+
+# Email
+contact@example.com
+user.name@domain.co.uk
+
+# Phone Number
++8613812345678
+13987654321
+
+# ID Card
+110101199001011234
+11010119900101123X
+
+# JDBC Connection
+jdbc:mysql://localhost:3306/testdb?user=root&password=123456
+
+# Authorization Header
+basic YWRtaW46cGFzc3dvcmQ=
+bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+
+# Internal IP
+192.168.1.100
+10.0.0.1
+172.16.0.1
+
+# MAC Address
+00:1B:44:11:3A:B7
+
+# Windows Path
+C:\Windows\System32\
+D:\Documents\file.txt
+
+# URL
+https://example.com/api/v1/users
+http://test.local:8080/path

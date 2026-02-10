@@ -2,9 +2,9 @@ package baserule
 
 import (
 	"fmt"
-	"github.com/winezer0/xutils/logging"
-	"regexp"
 	"strings"
+
+	"github.com/winezer0/xutils/logging"
 )
 
 // ValidateRules 验证规则配置
@@ -34,8 +34,8 @@ func (c *RuleConfig) ValidateRules() error {
 				continue
 			}
 
-			// 验证正则表达式
-			if _, err := regexp.Compile(rule.FRegex); err != nil {
+			// 验证正则表达式，使用回退机制
+			if _, err := TryCompileWithFallback(rule.FRegex); err != nil {
 				invalidRules = append(invalidRules, fmt.Sprintf("Rule Group %s, Rule %s: The rule f_regex [f_regex] compile is error:%v", group.Group, rule.Name, err))
 			}
 		}
