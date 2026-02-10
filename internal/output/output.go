@@ -21,7 +21,7 @@ type Output struct {
 }
 
 // ProcessResults 处理扫描结果
-func (p *Output) ProcessResults(results []scanner.ScanResult, stats *scanner.ScanStats) error {
+func (p *Output) ProcessResults(results []scanner.ScanResult) error {
 	if len(results) == 0 {
 		logging.Info("no results found")
 		return nil

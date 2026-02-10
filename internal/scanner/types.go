@@ -1,7 +1,5 @@
 package scanner
 
-import "time"
-
 // ScanConfig 扫描器配置
 type ScanConfig struct {
 	Workers     int
@@ -27,24 +25,4 @@ type ScanResult struct {
 	Position   int    `json:"position"`    // 匹配位置
 	LineNumber int    `json:"line_number"` // 行号
 	Sensitive  bool   `json:"sensitive"`   // 是否敏感信息
-}
-
-// ScanStats 表示扫描统计信息
-type ScanStats struct {
-	TotalFiles     int           // 总文件数
-	ProcessedFiles int           // 已处理文件数
-	TotalResults   int           // 总结果数
-	StartTime      time.Time     // 开始时间
-	ElapsedTime    time.Duration // 已用时间
-	EstimatedTime  time.Duration // 预计剩余时间
-}
-
-// ProgressInfo 表示进度信息
-type ProgressInfo struct {
-	Current   int
-	Total     int
-	Percent   float64
-	Elapsed   time.Duration
-	Remaining time.Duration
-	Message   string
 }

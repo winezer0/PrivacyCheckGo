@@ -237,13 +237,12 @@ func main() {
 	}
 
 	// 获取扫描统计信息
-	stats := scannerInstance.GetStats()
 	logging.Infof("scan completed, found %d results", len(results))
 
 	// 处理输出
 	if len(results) > 0 {
 		outputProcessor := newOutputConfig(cmdConfig)
-		if err := outputProcessor.ProcessResults(results, stats); err != nil {
+		if err := outputProcessor.ProcessResults(results); err != nil {
 			logging.Errorf("failed to output results: %v", err)
 			os.Exit(1)
 		}

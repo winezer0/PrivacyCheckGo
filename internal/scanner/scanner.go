@@ -3,10 +3,10 @@ package scanner
 import (
 	"fmt"
 	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/xutils/progress"
 	"github.com/winezer0/xutils/utils"
 	"privacycheck/internal/baserule"
 	"sync"
-	"time"
 )
 
 // Scanner 扫描器
@@ -16,8 +16,6 @@ type Scanner struct {
 	cache      *CacheManager
 	results    []ScanResult
 	resultsMux sync.Mutex
-	stats      ScanStats
-	statsMux   sync.RWMutex
 }
 
 // NewScanner 创建新的扫描器
@@ -30,9 +28,6 @@ func NewScanner(rules baserule.RuleMap, config *ScanConfig) (*Scanner, error) {
 	scanner := &Scanner{
 		engine: engine,
 		config: config,
-		stats: ScanStats{
-			StartTime: time.Now(),
-		},
 	}
 
 	// 初始化缓存
@@ -47,8 +42,6 @@ func NewScanner(rules baserule.RuleMap, config *ScanConfig) (*Scanner, error) {
 
 // Scan 执行扫描
 func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
-	s.stats.TotalFiles = len(filePaths)
-
 	logging.Infof("starting scan, found %d files to process", len(filePaths))
 	logging.Infof("using %d worker threads", s.config.Workers)
 
@@ -71,23 +64,20 @@ func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 		}
 	}()
 
-	// 启动进度监控
-	progressDone := make(chan bool)
-	go s.progressMonitor(progressDone)
-
 	// 收集结果
 	go func() {
 		defer close(results)
 		wg.Wait()
 	}()
 
+	// 启动进度监控
+	bar := progress.NewProcessBarByTotalTask(int64(len(filePaths)), "Scanning ...")
+
 	// 处理结果
 	for job := range results {
 		s.processJobResult(job)
+		_ = bar.Add(1)
 	}
-
-	// 停止进度监控
-	progressDone <- true
 
 	// 最终保存缓存
 	if s.cache != nil {
@@ -95,10 +85,6 @@ func (s *Scanner) Scan(filePaths []string) ([]ScanResult, error) {
 			logging.Warnf("failed to save final cache: %v", err)
 		}
 	}
-
-	s.stats.ElapsedTime = time.Since(s.stats.StartTime)
-	logging.Infof("scan completed! total time: %v, found %d results",
-		s.stats.ElapsedTime, len(s.results))
 
 	return s.results, nil
 }
@@ -170,10 +156,6 @@ func (s *Scanner) scanFile(filePath string) ([]ScanResult, error) {
 
 // processJobResult 处理任务结果
 func (s *Scanner) processJobResult(job ScanJob) {
-	s.statsMux.Lock()
-	s.stats.ProcessedFiles++
-	s.statsMux.Unlock()
-
 	if job.Error != nil {
 		logging.Warnf("failed to scan file %s: %v", job.FilePath, job.Error)
 		return
@@ -182,7 +164,6 @@ func (s *Scanner) processJobResult(job ScanJob) {
 	// 添加结果
 	s.resultsMux.Lock()
 	s.results = append(s.results, job.Results...)
-	s.stats.TotalResults = len(s.results)
 	s.resultsMux.Unlock()
 
 	// 更新缓存
@@ -194,51 +175,4 @@ func (s *Scanner) processJobResult(job ScanJob) {
 			logging.Warnf("failed to save cache: %v", err)
 		}
 	}
-}
-
-// progressMonitor 进度监控
-func (s *Scanner) progressMonitor(done <-chan bool) {
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-done:
-			return
-		case <-ticker.C:
-			s.printProgress()
-		}
-	}
-}
-
-// printProgress 打印进度
-func (s *Scanner) printProgress() {
-	s.statsMux.RLock()
-	stats := s.stats
-	s.statsMux.RUnlock()
-
-	if stats.TotalFiles == 0 {
-		return
-	}
-
-	elapsed := time.Since(stats.StartTime)
-	percent := float64(stats.ProcessedFiles) / float64(stats.TotalFiles) * 100
-
-	var remaining time.Duration
-	if stats.ProcessedFiles > 0 {
-		avgTime := elapsed / time.Duration(stats.ProcessedFiles)
-		remaining = avgTime * time.Duration(stats.TotalFiles-stats.ProcessedFiles)
-	}
-
-	logging.Infof("progress: %d/%d (%.2f%%) elapsed: %v remaining: %v results: %d",
-		stats.ProcessedFiles, stats.TotalFiles, percent,
-		elapsed.Truncate(time.Second), remaining.Truncate(time.Second),
-		stats.TotalResults)
-}
-
-// GetStats 获取扫描统计信息
-func (s *Scanner) GetStats() *ScanStats {
-	s.statsMux.RLock()
-	defer s.statsMux.RUnlock()
-	return &s.stats
 }
