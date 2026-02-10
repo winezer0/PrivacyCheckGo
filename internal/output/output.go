@@ -2,10 +2,10 @@ package output
 
 import (
 	"fmt"
+	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/xutils/utils"
 	"path/filepath"
 	"privacycheck/internal/scanner"
-	"privacycheck/pkg/fileutils"
-	"privacycheck/pkg/logging"
 	"strings"
 )
 
@@ -86,7 +86,7 @@ func (p *Output) outputGroup(groupName string, results []scanner.ScanResult) err
 	}
 
 	// 确保输出目录存在
-	if err := fileutils.EnsureDir(filepath.Dir(outputFile)); err != nil {
+	if err := utils.EnsureDir(outputFile, true); err != nil {
 		return fmt.Errorf("创建输出目录失败: %w", err)
 	}
 

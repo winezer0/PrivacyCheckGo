@@ -3,9 +3,9 @@ package scanner
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/xutils/utils"
 	"os"
-	"privacycheck/pkg/fileutils"
-	"privacycheck/pkg/logging"
 	"sync"
 	"time"
 )
@@ -54,7 +54,7 @@ func (m *CacheManager) LoadCache() error {
 		return nil // 缓存文件不存在，不是错误
 	}
 
-	data, err := fileutils.ReadFile(m.cacheFile)
+	data, err := utils.ReadFileToBytes(m.cacheFile)
 	if err != nil {
 		return fmt.Errorf("failed to read cache file [%s]: %w", m.cacheFile, err)
 	}
@@ -76,7 +76,7 @@ func (m *CacheManager) SaveCache() error {
 	// 调用了保存功能就应该更新时间戳
 	m.lastSave = time.Now()
 	m.cacheData.LastUpdate = time.Now().Format(time.RFC3339)
-	if err := fileutils.WriteJSONFile(m.cacheFile, m.cacheData); err != nil {
+	if err := utils.SaveJSON(m.cacheFile, m.cacheData); err != nil {
 		return fmt.Errorf("failed to write cache file: %w", err)
 	}
 	m.dirty = false

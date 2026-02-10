@@ -1,7 +1,7 @@
 package baserule
 
 import (
-	"privacycheck/pkg/logging"
+	"github.com/winezer0/xutils/logging"
 	"strings"
 )
 

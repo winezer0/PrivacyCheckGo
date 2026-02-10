@@ -1,9 +1,11 @@
 package output
 
 import (
+	"encoding/csv"
 	"fmt"
+	"os"
+	"path/filepath"
 	"privacycheck/internal/scanner"
-	"privacycheck/pkg/fileutils"
 	"reflect"
 )
 
@@ -24,7 +26,7 @@ func (p *Output) writeCSV(filename string, results []scanner.ScanResult) error {
 	}
 
 	// 使用fileutils写入CSV
-	if err := fileutils.WriteCSVFile(filename, headers, records); err != nil {
+	if err := writeCSV(filename, headers, records); err != nil {
 		return fmt.Errorf("failed to write CSV file: %w", err)
 	}
 
@@ -91,4 +93,44 @@ func (p *Output) getFieldValue(result scanner.ScanResult, fieldName string) stri
 	default:
 		return ""
 	}
+}
+
+// writeCSV 写入CSV文件
+func writeCSV(filename string, headers []string, records [][]string) error {
+	file, err := createFile(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// 写入表头
+	if len(headers) > 0 {
+		if err := writer.Write(headers); err != nil {
+			return err
+		}
+	}
+
+	// 写入数据
+	for _, record := range records {
+		if err := writer.Write(record); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CreateFile 创建文件，如果目录不存在会自动创建
+func createFile(filePath string) (*os.File, error) {
+	// 确保目录存在
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, err
+	}
+
+	// 创建文件
+	return os.Create(filePath)
 }

@@ -2,9 +2,9 @@ package scanner
 
 import (
 	"fmt"
+	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/xutils/utils"
 	"privacycheck/internal/baserule"
-	"privacycheck/pkg/fileutils"
-	"privacycheck/pkg/logging"
 	"sync"
 	"time"
 )
@@ -111,7 +111,7 @@ func (s *Scanner) worker(jobs <-chan string, results chan<- ScanJob, wg *sync.Wa
 		job := ScanJob{FilePath: filePath}
 
 		// 检查文件是否有效
-		if !fileutils.FileExists(filePath) {
+		if !utils.FileExists(filePath) {
 			job.Error = fmt.Errorf("file %s is not valid or is a directory", filePath)
 			results <- job
 			continue
@@ -138,7 +138,7 @@ func (s *Scanner) scanFile(filePath string) ([]ScanResult, error) {
 	var results []ScanResult
 
 	// 获取文件大小和编码信息
-	fileInfo, err := fileutils.PathToFileInfo(filePath)
+	fileInfo, err := utils.PathToFileInfo(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get file size %s: %w", filePath, err)
 	}
@@ -147,7 +147,7 @@ func (s *Scanner) scanFile(filePath string) ([]ScanResult, error) {
 	chunkThreshold := int64(s.config.ChunkLimit) * 1024 * 1024 // 转换为字节
 	if s.config.ChunkLimit > 0 && fileInfo.Size > chunkThreshold {
 		const chunkSize = 1024 * 1024 // 1MB per chunk
-		err := fileutils.ReadFileByChunk(filePath, fileInfo.Encoding, chunkSize, func(chunk fileutils.ChunkInfo) error {
+		err := utils.ReadFileByChunk(filePath, fileInfo.Encoding, chunkSize, func(chunk utils.ChunkInfo) error {
 			// 对每个块应用规则，传入正确的行号偏移
 			chunkResults := s.engine.ApplyRules(chunk.Content, filePath, int(chunk.StartOffset), chunk.StartLine)
 			results = append(results, chunkResults...)
@@ -158,7 +158,7 @@ func (s *Scanner) scanFile(filePath string) ([]ScanResult, error) {
 		}
 	} else {
 		// 小文件或禁用分块读取时，直接读取全部内容
-		content, err := fileutils.ReadFileWithEncoding(filePath, fileInfo.Encoding)
+		content, err := utils.ReadFileWithEncoding(filePath, fileInfo.Encoding)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read the file %s error: %w", filePath, err)
 		}

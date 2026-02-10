@@ -1,8 +1,8 @@
 package output
 
 import (
+	"github.com/winezer0/xutils/logging"
 	"privacycheck/internal/scanner"
-	"privacycheck/pkg/logging"
 	"strings"
 )
 

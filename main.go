@@ -3,12 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/xutils/utils"
 	"os"
 	"privacycheck/internal/baserule"
 	"privacycheck/internal/output"
 	"privacycheck/internal/scanner"
-	"privacycheck/pkg/fileutils"
-	"privacycheck/pkg/logging"
 	"runtime"
 
 	"github.com/jessevdk/go-flags"
@@ -98,14 +98,14 @@ func checkArgs(opts *CmdConfig) error {
 
 	// 验证文件/目录是否存在
 	if opts.ProjectPath != "" {
-		if exists, _, _ := fileutils.PathExists(opts.ProjectPath); !exists {
+		if exists, _, _ := utils.PathExists(opts.ProjectPath); !exists {
 			return fmt.Errorf("the project path not exist: %s", opts.ProjectPath)
 		}
 	}
 
 	// 设置默认项目名称
 	if opts.ProjectName == "" {
-		opts.ProjectName = fileutils.GetPathLastDir(opts.ProjectPath)
+		opts.ProjectName = utils.GetPathLastDir(opts.ProjectPath)
 	}
 
 	// 设置默认输出文件名
@@ -160,7 +160,7 @@ func main() {
 	logging.Infof("project name: %s, project path: %s", cmdConfig.ProjectName, cmdConfig.ProjectPath)
 
 	// 如果配置文件不存在，创建默认配置文件
-	if !fileutils.FileExists(cmdConfig.RulesFile) {
+	if !utils.FileExists(cmdConfig.RulesFile) {
 		logging.Warnf("config file %s not exist, will create default config ...", cmdConfig.RulesFile)
 		if err := baserule.CreateDefaultConfig(cmdConfig.RulesFile); err != nil {
 			logging.Errorf("create default config %s error:%v", cmdConfig.RulesFile, err)
@@ -211,7 +211,7 @@ func main() {
 	}
 
 	// 获取待扫描文件 - 使用 fileutils 直接进行过滤
-	files, err := fileutils.GetFilesWithFilter(
+	files, err := utils.GetFilesWithFilter(
 		cmdConfig.ProjectPath,
 		cmdConfig.ExcludeExt,
 		cmdConfig.ExcludePath,

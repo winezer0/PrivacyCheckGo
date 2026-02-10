@@ -2,7 +2,7 @@ package baserule
 
 import (
 	"fmt"
-	"privacycheck/pkg/logging"
+	"github.com/winezer0/xutils/logging"
 	"regexp"
 	"strings"
 )
