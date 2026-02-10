@@ -2,10 +2,11 @@ package scanner
 
 // ScanConfig 扫描器配置
 type ScanConfig struct {
-	Workers     int
-	SaveCache   bool
 	ProjectName string
+	ProjectPath string
+	CacheFile   string
 	ChunkLimit  int // 分块读取阈值，单位MB
+	Workers     int
 }
 
 // ScanJob 扫描任务结果

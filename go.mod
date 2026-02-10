@@ -6,7 +6,6 @@ require (
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/winezer0/xutils v0.0.10-0.20260210103252-cc0c6af562b5
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -20,4 +19,5 @@ require (
 	golang.org/x/term v0.28.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
