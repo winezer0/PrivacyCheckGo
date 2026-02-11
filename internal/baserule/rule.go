@@ -13,6 +13,7 @@ type Rule struct {
 	Loaded       bool   `yaml:"loaded" json:"loaded"`               // 是否启用规则
 	ContextLeft  int    `yaml:"context_left" json:"context_left"`   // 匹配结果向左扩充字符数
 	ContextRight int    `yaml:"context_right" json:"context_right"` // 匹配结果向右扩充字符数
+	SampleCode   string `yaml:"sample_code" json:"sample_code"`     // 用于测试正则的示例代码
 }
 
 // Rules 表示规则组

@@ -35,8 +35,22 @@ func (c *RuleConfig) ValidateRules() error {
 			}
 
 			// 验证正则表达式，使用回退机制
-			if _, err := TryCompileWithFallback(rule.FRegex); err != nil {
+			matcher, err := TryCompileWithFallback(rule.FRegex)
+			if err != nil {
 				invalidRules = append(invalidRules, fmt.Sprintf("Rule Group %s, Rule %s: The rule f_regex [f_regex] compile is error:%v", group.Group, rule.Name, err))
+			} else {
+				// 验证 SampleCode
+				if rule.SampleCode == "" {
+					logging.Warnf("Rule Group %s, Rule %s: No sample_code provided for testing", group.Group, rule.Name)
+				} else {
+					// 测试正则是否能够匹配 SampleCode
+					match, err := matcher.MatchString(rule.SampleCode)
+					if err != nil {
+						invalidRules = append(invalidRules, fmt.Sprintf("Rule Group %s, Rule %s: Error matching sample_code: %v", group.Group, rule.Name, err))
+					} else if !match {
+						invalidRules = append(invalidRules, fmt.Sprintf("Rule Group %s, Rule %s: Regex does not match sample_code", group.Group, rule.Name))
+					}
+				}
 			}
 		}
 	}

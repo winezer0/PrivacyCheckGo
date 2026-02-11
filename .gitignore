@@ -36,3 +36,4 @@ go.work.sum
 /dist
 /test-samples
 *.json
+/examples

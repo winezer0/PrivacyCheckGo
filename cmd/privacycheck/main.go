@@ -9,14 +9,15 @@ import (
 	"os"
 	"privacycheck/internal/baserule"
 	"privacycheck/internal/output"
+	"privacycheck/internal/ruletest"
 	"privacycheck/internal/scanner"
 	"runtime"
 )
 
 const (
 	AppName      = "PrivacyCheck"
-	AppVersion   = "0.2.0"
-	BuildDate    = "2026-02-10"
+	AppVersion   = "0.2.1"
+	BuildDate    = "2026-02-11"
 	AppShortDesc = "privacy check base on rules"
 	AppLongDesc  = "privacy check base on rules"
 )
@@ -59,6 +60,7 @@ type Options struct {
 	LogLevel   string `long:"ll" description:"日志级别 (debug/info/warn/error)" choice:"debug" choice:"info" choice:"warn" choice:"error" default:"info"`
 	LogConsole string `long:"cf" description:"控制台日志格式 (T=时间,L=级别,C=调用者,M=消息,F=函数,off=关闭)" default:"TLM"`
 
+	Test    bool `long:"test" description:"test all rules and generate test report"`
 	Version bool `short:"v" long:"version" description:"display the program version and exit"`
 }
 
@@ -77,6 +79,12 @@ func main() {
 	}
 
 	logging.Infof("Load rule file rules group: %d", len(rulesConfig.Rules))
+
+	// 检查是否为测试模式
+	if opts.Test {
+		ruletest.RunRuleTest(opts.RulesFile, rulesConfig.Rules)
+		return
+	}
 
 	// 验证规则
 	if err := rulesConfig.ValidateRules(); err != nil {
@@ -246,6 +254,14 @@ func InitOptionsArgs(minimumParams int) (*Options, *flags.Parser) {
 	// 验证工作线程数
 	if opts.Workers <= 0 {
 		opts.Workers = utils.MaxNum(runtime.NumCPU()/4, 1)
+	}
+
+	// 检查是否为测试模式
+	if opts.Test {
+		if rulesConfig, err := baserule.LoadRulesYaml(opts.RulesFile); err == nil {
+			ruletest.RunRuleTest(opts.RulesFile, rulesConfig.Rules)
+		}
+		os.Exit(0)
 	}
 
 	logging.Infof("ProjectName: %s", opts.ProjectName)

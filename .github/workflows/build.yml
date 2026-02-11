@@ -1,0 +1,67 @@
+name: Release Build
+
+on:
+  # 1. 仅监听真正需要的事件：
+  # - published: 正式发布（非草稿）
+  # - prereleased: 预发布（如 v1.0.0-rc1）
+  release:
+    types: [published, prereleased]
+
+  # 手动触发：允许用户输入版本号
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+        default: 'v0.0.1'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: privacycheck-linux-amd64
+          - os: windows-latest
+            asset_name: privacycheck-windows-amd64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          check-latest: true
+          cache: false
+
+      - name: Build
+        run: |
+          go build -v -trimpath -ldflags "-s -w" -o ${{ matrix.asset_name }} ./cmd/privacycheck
+
+      # === 自动发布（由 GitHub Release 触发）===
+      - name: Upload assets to existing release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
+          # 注意：softprops/action-gh-release 默认会更新已存在的 release（由 tag 匹配）
+          # 无需指定 tag_name，它会自动使用 github.event.release.tag_name
+
+      # === 手动发布（由 workflow_dispatch 触发）===
+      - name: Create new release and upload assets
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          draft: false
+          prerelease: ${{ contains(github.event.inputs.version, 'alpha') || contains(github.event.inputs.version, 'beta') || contains(github.event.inputs.version, 'rc') }}
+          files: ${{ matrix.asset_name }}
