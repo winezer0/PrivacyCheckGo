@@ -16,7 +16,7 @@ import (
 
 const (
 	AppName      = "PrivacyCheck"
-	AppVersion   = "0.2.1"
+	AppVersion   = "0.2.2"
 	BuildDate    = "2026-02-11"
 	AppShortDesc = "privacy check base on rules"
 	AppLongDesc  = "privacy check base on rules"
