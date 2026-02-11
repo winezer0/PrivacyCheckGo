@@ -1,0 +1,62 @@
+name: Release Build
+
+on:
+  # 1. 当通过 GitHub UI 创建 Release 时触发（已有 tag）
+  release:
+    types: [created]
+
+  # 2. 手动触发：允许用户输入版本号
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+        default: 'v0.0.1'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: privacycheck-linux-amd64
+          - os: windows-latest
+            asset_name: privacycheck-windows-amd64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          check-latest: true
+          cache: false
+
+      - name: Build
+        run: |
+          go build -v -trimpath -ldflags "-s -w" -o ${{ matrix.asset_name }} ./cmd/privacycheck
+
+      # === 核心：根据触发方式决定如何发布 ===
+      - name: Upload Release Asset (from existing release)
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
+
+      - name: Create or Update Release (from manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          draft: false
+          prerelease: ${{ contains(github.event.inputs.version, 'alpha') || contains(github.event.inputs.version, 'beta') || contains(github.event.inputs.version, 'rc') }}
+          files: ${{ matrix.asset_name }}
