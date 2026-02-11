@@ -1,15 +1,13 @@
 name: Release Build
 
 on:
-  # 1. 监听多种 Release 生命周期事件：
-  # - created: 创建新 Release（包括草稿或正式版）
-  # - published: 草稿被发布为正式 Release
-  # - prereleased: 发布预发布版本（勾选 "This is a pre-release"）
-  # - released: （已废弃）实际与 published 行为重叠，GitHub 官方不再推荐使用
+  # 1. 仅监听真正需要的事件：
+  # - published: 正式发布（非草稿）
+  # - prereleased: 预发布（如 v1.0.0-rc1）
   release:
-    types: [created, published, prereleased, released ]
+    types: [published, prereleased]
 
-  # 2. 手动触发：允许用户输入版本号
+  # 手动触发：允许用户输入版本号
   workflow_dispatch:
     inputs:
       version:
@@ -48,14 +46,17 @@ jobs:
         run: |
           go build -v -trimpath -ldflags "-s -w" -o ${{ matrix.asset_name }} ./cmd/privacycheck
 
-      # === 核心：根据触发方式决定如何发布 ===
-      - name: Upload Release Asset (from existing release)
+      # === 自动发布（由 GitHub Release 触发）===
+      - name: Upload assets to existing release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.asset_name }}
+          # 注意：softprops/action-gh-release 默认会更新已存在的 release（由 tag 匹配）
+          # 无需指定 tag_name，它会自动使用 github.event.release.tag_name
 
-      - name: Create or Update Release (from manual trigger)
+      # === 手动发布（由 workflow_dispatch 触发）===
+      - name: Create new release and upload assets
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
